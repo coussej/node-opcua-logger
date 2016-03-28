@@ -1,0 +1,29 @@
+{
+	"input": {
+		"url": "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
+	},
+	"output": {
+		"name": "influx_1",
+		"type": "influxdb",
+		"host": "188.166.28.165",
+		"port": 8086,
+		"protocol": "http",
+		"username": "",
+		"password": "",
+		"database": "test",
+		"buffer_max_size": 64,
+		"write_interval": 2000,
+		"write_max_points": 2
+	},
+	"tags": [
+		{
+			"name": "An Int32",
+			"nodeId": "ns=2;i=10849",
+			"updateInterval": 100
+		},{
+			"name": "An I232",
+			"nodeId": "ns=2;i=10849",
+			"updateInterval": 10
+		}
+	]
+}
