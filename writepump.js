@@ -4,11 +4,11 @@ var nedb = require("nedb");
 
 function WritePump(config) {
 	var dbname = config.name + ".db";
-    var path = require('path').resolve(__dirname, dbname);
+	var path = require('path').resolve(__dirname, dbname);
 	
 	this.name = config.name;
 	this.config = config;
-    this.buffer = new nedb({ 
+	this.buffer = new nedb({ 
 		filename: path, 
 		autoload: true 
 	});
@@ -24,7 +24,6 @@ function WritePump(config) {
 
 /**
  * Start the instance's writepump.
- * @param {Datapoint} point
  */
 WritePump.prototype.Start = function() {
 	var name = this.name;
