@@ -8,6 +8,7 @@
   "dependencies": {    
     "async": "1.5.2",
     "influx": "4.1.0",
-    "node-opcua": "0.0.52"
+    "node-opcua": "0.0.52",
+    "toml": "2.3.0"
   }
 }

@@ -1,10 +1,10 @@
 var async = require("async");
 var influx = require("influx");
 var opcua = require("node-opcua");
+var toml = require("toml");
 var writepump = require("./writepump.js");
 
-// load configuration
-var config = require("./config.json");
+var config = loadConfig();
 console.log(config);
 
 // Get a writepump for the output and start it.
@@ -17,3 +17,8 @@ var uaClient = new opcua.OPCUAClient()
   , uaSubscription;
 
 
+function loadConfig() {
+	var path = require("path").resolve(__dirname, 'config.toml');
+	var text = require("fs").readFileSync(path, "utf8");
+	return toml.parse(text);
+}
