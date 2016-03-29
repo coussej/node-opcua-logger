@@ -71,7 +71,7 @@ WritePump.prototype.Start = function() {
 			}
 		)},
 		function(err) {
-			console.log(name, err);
+			if (err) console.log(name, err);
 		}
 	);
 }
@@ -81,8 +81,8 @@ WritePump.prototype.Start = function() {
  * @param {Datapoint} point
  */
 WritePump.prototype.AddPointToBuffer = function(point) { 
-	this.buffer.insert(doc, function (err, newDoc) {   
-		console.log(this.name, "Error writing to buffer. Point:", point, ", Err:", err);
+	this.buffer.insert(point, function (err, newDoc) {   
+		if (err) console.log(this.name, "Error writing to buffer. Point:", point, ", Err:", err);
 	});
 }
 
