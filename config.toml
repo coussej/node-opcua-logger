@@ -1,5 +1,5 @@
 [input]
-url = "opc.tcp=//opcua.demo-this.com=51210/UA/SampleServer"
+url = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
 	
 [output]
 name             = "influx_1"
@@ -11,15 +11,15 @@ username         = ""
 password         = ""
 database         = "test"
 buffer_max_size  = 64
-write_interval   = 2000
-write_max_points = 2
+write_interval   = 3000
+write_max_points = 1000
 
 [[tags]]
 name            = "An Int32"
 node_id         = "ns=2;i=10849"
-update_interval = 100
+update_interval = 10
 
 [[tags]]
 name            = "An Int32"
 node_id         = "ns=2;i=10849"
-update_interval = 100
+update_interval = 10

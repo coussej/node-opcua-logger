@@ -11,11 +11,13 @@ console.log(config);
 var wp = new writepump(config.output);
 wp.Start();
 
-// Declare OPCUA globals;
-var uaSession;
-var uaSubscription;
-var uaClient;
+// Declare OPC globals.
+var uaClient;         // the opc ua client.
+var uaSession;        // the session establiched after connecting the client.
+var uaSubscription;   // the subscription installed for the session.
+var uaMonitoredNodes = []; // the nodes that are mmonitored in the subscription.
 
+// Execute the OPC logic
 async.waterfall([
 	// Connect to OPC UA server.
 	function(waterfall_next) {
@@ -42,21 +44,94 @@ async.waterfall([
 		});
 		uaSession.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
 			// For some reason, I can't pass waterfall_next as the callback 
-			// function to read(). This does work.
+			// function to read(). This however works.
 			waterfall_next(err, nodesToRead, dataValues);
 		});
 	}, 
 	// Process the readRequest.
 	function(nodesToRead, dataValues, waterfall_next){
-		dataValues.forEach(function(datavalue, i) {
-			var sc = datavalue.statusCode
-			if (sc.value == 0) {
-				console.log("Tag [", config.tags[i].name , "] verified. Value = [", datavalue.value.value, "].");
-			} else {
-				console.log("Tag [", config.tags[i].name , "] could not be read. Status = [", sc.name, "], Description = [", sc.description, "].");
-			}           
+		dataValues.forEach(
+			function(datavalue, i) {
+				var sc = datavalue.statusCode
+				if (sc.value == 0) {
+					console.log("Tag [", config.tags[i].name , 
+								"] verified. Value = [", 
+								datavalue.value.value, "].");
+					uaMonitoredNodes.push({
+						name: config.tags[i].name,
+						nodeId: config.tags[i].node_id,
+						updateInterval: config.tags[i].update_interval
+					});
+				} else {
+					console.log("Tag [", config.tags[i].name ,
+								"] could not be read. Status = [", sc.name, 
+								"], Description = [", sc.description, "].");
+				}           
+			}
+		);
+		console.log(uaMonitoredNodes)
+		waterfall_next(null);
+	}, 
+	// Install a subscription and start monitoring
+	function(waterfall_next) {
+		uaSubscription = new opcua.ClientSubscription(uaSession, {
+			requestedPublishingInterval: 1000,
+			requestedLifetimeCount: 10,
+			requestedMaxKeepAliveCount: 2,
+			maxNotificationsPerPublish: 1,
+			publishingEnabled: true,
+			priority: 10
 		});
-		waterfall_next(null, 'done');
+		uaSubscription.on("started", function() {
+			console.log("subscription started for 2 seconds - subscriptionId=", 
+						uaSubscription.subscriptionId);
+		}).on("keepalive", function() {
+			console.log("subscription", uaSubscription.subscriptionId, 
+						"keepalive");
+		}).on("terminated", function() {
+			var err = "subscription" + uaSubscription.subscriptionId +
+						   "was terminated" ;
+			waterfall_next(err);
+		});
+		
+		// Install a monitored item for each tag in uaMonitoredNodes
+		uaMonitoredNodes.forEach(
+			function(node){
+				var monitoredItem = uaSubscription.monitor({
+					nodeId: opcua.resolveNodeId(node.nodeId),
+					attributeId: opcua.AttributeIds.Value
+				},{	
+					clienthandle: 13,
+					samplingInterval: node.updateInterval,
+					discardOldest: true,
+					queueSize: 20
+				},
+				opcua.read_service.TimestampsToReturn.Both,
+				function(err){
+					if (err) console.log("ERR ", err);
+				});
+				
+				monitoredItem.on("changed", function(dataValue) {
+					var value = {
+						"value": dataValue.value.value,
+						"time": dataValue.sourceTimestamp.getTime()
+					};
+					var tags = {
+						"opcstatus": dataValue.statusCode.value
+					};
+					
+					wp.AddPointToBuffer({value, tags});
+				});
+				
+				monitoredItem.on("err", function (err_message) {
+					console.log(monitoredItem.itemToMonitor.nodeId.toString(), 
+								" ERROR :", err_message);
+				});
+				
+				// add the monitored item to the node in the list.
+				node.monitoredItem = monitoredItem;
+			}
+		);
 	}
 ] , function(err, results) {
     if (err) console.log("An error occured:", err);
