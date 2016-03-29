@@ -69,7 +69,6 @@ async.waterfall([
 				}           
 			}
 		);
-		console.log(uaMonitoredNodes)
 		waterfall_next(null);
 	}, 
 	// Install a subscription and start monitoring
@@ -112,15 +111,23 @@ async.waterfall([
 				});
 				
 				monitoredItem.on("changed", function(dataValue) {
-					var value = {
+					var values = {
 						"value": dataValue.value.value,
+						"opcstatus": dataValue.statusCode.value,
 						"time": dataValue.sourceTimestamp.getTime()
 					};
-					var tags = {
-						"opcstatus": dataValue.statusCode.value
-					};
-					
-					wp.AddPointToBuffer({value, tags});
+					var tags = {};
+					if ((typeof values.value === "number" || 
+						typeof values.value === "boolean") && 
+						!isNaN(values.value)) {
+						wp.AddPointToBuffer({tag: node.name, 
+											 values: values, 
+											 tags:tags});
+					} else {
+						console.log("Type [", typeof values.value, 
+									"] of value [", values.value,
+								   "] not allowed.")
+					}				
 				});
 				
 				monitoredItem.on("err", function (err_message) {

@@ -4,12 +4,13 @@ url = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
 [output]
 name             = "influx_1"
 type             = "influxdb"
-host             = "188.166.28.165"
+host             = "178.62.237.81"
 port             = 8086
 protocol         = "http"
 username         = ""
 password         = ""
 database         = "test"
+failoverTimeout  = 10000
 buffer_max_size  = 64
 write_interval   = 3000
 write_max_points = 1000
@@ -20,6 +21,36 @@ node_id         = "ns=2;i=10849"
 update_interval = 10
 
 [[tags]]
-name            = "An Int32"
-node_id         = "ns=2;i=10849"
+name            = "An UInt32"
+node_id         = "ns=2;i=10850"
+update_interval = 10
+
+[[tags]]
+name            = "A bool"
+node_id         = "ns=2;i=10844"
+update_interval = 10
+
+[[tags]]
+name            = "An Int16"
+node_id         = "ns=2;i=10847"
+update_interval = 10
+
+[[tags]]
+name            = "An UInt16"
+node_id         = "ns=2;i=10848"
+update_interval = 10
+
+[[tags]]
+name            = "An UInt16"
+node_id         = "ns=2;i=10848"
+update_interval = 10
+
+[[tags]]
+name            = "A float"
+node_id         = "ns=2;i=10853"
+update_interval = 10
+
+[[tags]]
+name            = "A Double"
+node_id         = "ns=2;i=10854"
 update_interval = 10

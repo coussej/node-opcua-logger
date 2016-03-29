@@ -13,12 +13,13 @@ function WritePump(config) {
 		autoload: true 
 	});
 	this.output = new influx({
-		  host :     config.host,
-		  port :     config.port, // optional, default 8086
-		  protocol : config.protocol, // optional, default 'http'
-		  username : config.username,
-		  password : config.password,
-		  database : config.database
+		host :           config.host,
+		port :           config.port, // optional, default 8086
+		protocol :       config.protocol, // optional, default 'http'
+		username :       config.username,
+		password :       config.password,
+		database :       config.database,
+		failoverTimeout: config.failoverTimout 
 	});
 }
 
@@ -47,13 +48,16 @@ WritePump.prototype.Start = function() {
 				function(docs, waterfall_next) {
 					console.log(name, ": found", docs.length, "records in buffer.");
 					var ids = [];
+					var series = {};
 					docs.forEach(function(doc) {
 						ids.push(doc._id);
+						if (!(doc.tag in series)) series[doc.tag] = [];
+						series[doc.tag].push([doc.values, doc.tags]);
 					});
-					// TODO: this is where we should send the data towards 
-					// influxDB. If succesfull, we pass the ids to the delete 
-					// function. If not, we try again next iteration.
-					waterfall_next(null, ids);
+					
+					outp.writeSeries(series, function(err, response){
+						waterfall_next(err, ids);
+					});	
 				},
 				function(ids, waterfall_next) {
 					buff.remove({_id: { $in: ids } }, { multi: true	}, waterfall_next)
@@ -65,6 +69,7 @@ WritePump.prototype.Start = function() {
 				var wait = numberProcessed == writeLimit ? 0 : writeInterval
 				if (wait > 0) {
 					// now is a good time to compact the buffer.
+					console.log("compacting buffer");
 					buff.persistence.compactDatafile();
 				}
 				setTimeout(forever_next, wait);
