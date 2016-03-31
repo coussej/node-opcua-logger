@@ -45,14 +45,11 @@ write_max_points = 1000    # Max point per POST request.
 Then, for each OPC value you want to log, repeat the following in the config file:
 
 ```
-[input]
-url = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
-```
-
 [[tags]]
 name            = "An Int32"      # This will also be the measurement name in InfluxDb.
 node_id         = "ns=2;i=10849"  # The nodeID.
 update_interval = 10              # The requested resolution in milliseconds.
+```
 
 ## Run
 
