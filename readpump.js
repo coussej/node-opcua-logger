@@ -63,26 +63,47 @@ ReadPump.prototype.InitializeMeasurements = function(callback) {
 			attributeId: opcua.AttributeIds.Value
 		});
 	});
+	
+	async.waterfall([
+		// execute read request
+		function(waterfall_next) {
+			self.ua_session.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
+				// For some reason, I can't pass waterfall_next as the callback 
+				// function to read(). This however works.
+				waterfall_next(err, nodesToRead, dataValues);
+			});		
+		}, 
+		// process read response
+		function(nodes, dataValues, waterfall_next) {
+			dataValues.forEach(
+				function(datavalue, i) {
+					var sc = datavalue.statusCode
+					if (sc.value == 0) {
+						console.log("Tag [", self.measurements[i].name , 
+									"] verified. Value = [", 
+									datavalue.value.value, "].");
+						self.monitored_nodes.push({
+							name: self.measurements[i].name,
+							nodeId: self.measurements[i].node_id,
+							updateInterval: self.measurements[i].update_interval
+						});
+					} else {
+						console.log("Tag [", self.measurements[i].name ,
+									"] could not be read. Status = [", sc.name, 
+									"], Description = [", sc.description, "].");
+					}           
+				}
+			);
+		}	
+	], 
+	// final callback
+	function(err, results) {
+		callback(err);
+	});
+	
 	self.ua_session.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
-		dataValues.forEach(
-			function(datavalue, i) {
-				var sc = datavalue.statusCode
-				if (sc.value == 0) {
-					console.log("Tag [", self.measurements[i].name , 
-								"] verified. Value = [", 
-								datavalue.value.value, "].");
-					self.monitored_nodes.push({
-						name: self.measurements[i].name,
-						nodeId: self.measurements[i].node_id,
-						updateInterval: self.measurements[i].update_interval
-					});
-				} else {
-					console.log("Tag [", self.measurements[i].name ,
-								"] could not be read. Status = [", sc.name, 
-								"], Description = [", sc.description, "].");
-				}           
-			}
-		);
+		if (err) callback(err);
+		
 	});
 }
 
