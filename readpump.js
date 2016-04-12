@@ -12,37 +12,14 @@ function ReadPump(config, measurements, writepump) {
 	this.measurements = measurements;
 	this.polled_nodes = [];
 	this.monitored_nodes = [];
+	this.writepump = writepump;
 }
 
-/**
- * Start the instance's ReadPump.
- */
-ReadPump.prototype.start = function() {
-	var self = this;
-	
-	console.log("Initializing OPCUA readpump. Verifying tags.")
-	
-	async.series({
-		connect_opc: function(callback){
-			ua_client = new opcua.OPCUAClient();
-			uaClient.connect(ua_server, callback);
-		},
-		establish_session: function(callback){
-			setTimeout(function(){
-				callback(null, 2);
-			}, 100);
-		}
-	},
-	function(err, results) {
-		// results is now equal to: {one: 1, two: 2}
-	});
-}
-
-ReadPump.prototype.ConnectOPCUA = function(callback) {
+ReadPump.prototype.ConnectOPCUA = function (callback) {
 	this.ua_client.connect(this.ua_server_url, callback);
 }
 
-ReadPump.prototype.EstablishSession = function(callback) {
+ReadPump.prototype.EstablishSession = function (callback) {
 	self = this;
 	this.ua_client.createSession(function(err, session){
 		if (err) {
@@ -52,6 +29,81 @@ ReadPump.prototype.EstablishSession = function(callback) {
 			callback(null);
 		}
 	});
+}
+
+ReadPump.prototype.InstallSubscription = function (callback) {
+	self = this;
+	
+	// create an OPCUA subscription	
+	self.ua_subscription = new opcua.ClientSubscription(self.ua_session, {
+		requestedPublishingInterval: 1000,
+		requestedLifetimeCount: 10,
+		requestedMaxKeepAliveCount: 2,
+		maxNotificationsPerPublish: 20,
+		publishingEnabled: true,
+		priority: 1
+	});	
+	sub = self.ua_subscription;
+	sub.on("started", function() {
+		console.log("subscription", sub.subscriptionId, "started");
+	}).on("keepalive", function() {
+		console.log("subscription", sub.subscriptionId, "keepalive");
+	}).on("terminated", function() {
+		var err = "subscription" + sub.subscriptionId + "was terminated" ;
+		callback(err);
+	});
+	
+	// install a monitored item on the subscription for each measurement in 
+	// the readpump's monitored items.
+	self.monitored_nodes.forEach(
+		function(node){
+			var ua_monitored_item = 
+				sub.monitor({
+					nodeId: opcua.resolveNodeId(node.node_id),
+					attributeId: opcua.AttributeIds.Value
+				},{	
+					clienthandle: 13,
+					samplingInterval: node.monitor_resolution,
+					discardOldest: true,
+					queueSize: 1000
+				},
+				opcua.read_service.TimestampsToReturn.Both,
+			 	function(err){
+					if (err) callback(err);
+				});
+			ua_monitored_item.on("changed", function(dataValue) {
+				var values = {
+					"value": dataValue.value.value,
+					"opcstatus": dataValue.statusCode.value,
+					"time": dataValue.sourceTimestamp.getTime()
+				};
+				var tags = node.tags;
+				if ((typeof values.value === "number" || 
+					 typeof values.value === "boolean") && 
+					!isNaN(values.value)) {
+					//self.writepump.AddPointToBuffer({
+					console.log({
+						measurement: node.name, 
+						values: values, 
+						tags:tags
+					});
+				} else {
+					console.log(node.name, ": Type [", typeof values.value, 
+								"] of value [", values.value,
+								"] not allowed.")
+				}				
+			});
+
+			ua_monitored_item.on("err", function (err_message) {
+				console.log(ua_monitored_item.itemToMonitor.nodeId.toString(), 
+							" ERROR :", err_message);
+			});
+
+			// add the monitored item to the node in the list.
+			node.ua_monitored_item = ua_monitored_item;
+		}
+	);
+	
 }
 
 ReadPump.prototype.InitializeMeasurements = function(callback) {
@@ -93,13 +145,8 @@ ReadPump.prototype.InitializeMeasurements = function(callback) {
 		}	
 	], 
 	// final callback
-	function(err, results) {
+	function(err) {
 		callback(err);
-	});
-	
-	self.ua_session.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
-		if (err) callback(err);
-		
 	});
 }
 
@@ -111,6 +158,7 @@ ReadPump.prototype.AddMeasurement = function (m) {
 					this.monitored_nodes.push({
 						name: m.name,
 						node_id: m.node_id,
+						tags: m.tags,
 						monitor_resolution: m.monitor_resolution,
 						deadband_absolute: m.deadband_absolute || 0,
 						deadband_relative: m.deadband_relative || 0
@@ -130,6 +178,7 @@ ReadPump.prototype.AddMeasurement = function (m) {
 					this.polled_nodes.push({
 						name: m.name,
 						node_id: m.node_id,
+						tags: m.tags,
 						update_interval: update_interval,
 						deadband_absolute: m.deadband_absolute || 0,
 						deadband_relative: m.deadband_relative || 0
@@ -146,5 +195,24 @@ ReadPump.prototype.AddMeasurement = function (m) {
 		console.log("Property collection_type not found for measurement", m);
 	}
 }
+
+ReadPump.prototype.Run = function() {
+	var self = this;
+	
+	// Start both the monitoring and the polling of the measurments. 
+	// In case of an error, close everything.
+	async.parallel({
+		monitoring: function(parallel_callback){
+			// install the subscription
+			self.InstallSubscription(parallel_callback);
+		},
+		polling: function(parallel_callback){
+		}
+	},
+	function(err, results) {
+		// results is now equals to: {one: 1, two: 2}
+	});
+}
+
 
 module.exports = ReadPump;

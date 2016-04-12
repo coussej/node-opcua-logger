@@ -4,7 +4,7 @@ url = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
 [output]
 name             = "influx_1"
 type             = "influxdb"
-host             = "178.62.237.81"
+host             = "188.166.17.134"
 port             = 8086
 protocol         = "http"
 username         = ""
@@ -12,45 +12,15 @@ password         = ""
 database         = "test"
 failoverTimeout  = 10000
 buffer_max_size  = 64
-write_interval   = 3000
+write_interval   = 1000
 write_max_points = 1000
 
-[[tags]]
-name            = "An Int32"
-node_id         = "ns=2;i=10849"
-update_interval = 10
-
-[[tags]]
-name            = "An UInt32"
-node_id         = "ns=2;i=10850"
-update_interval = 10
-
-[[tags]]
-name            = "A bool"
-node_id         = "ns=2;i=10844"
-update_interval = 10
-
-[[tags]]
-name            = "An Int16"
-node_id         = "ns=2;i=10847"
-update_interval = 10
-
-[[tags]]
-name            = "An UInt16"
-node_id         = "ns=2;i=10848"
-update_interval = 10
-
-[[tags]]
-name            = "An UInt16"
-node_id         = "ns=2;i=10848"
-update_interval = 10
-
-[[tags]]
-name            = "A float"
-node_id         = "ns=2;i=10853"
-update_interval = 10
-
-[[tags]]
-name            = "A Double"
-node_id         = "ns=2;i=10854"
-update_interval = 10
+[[measurements]]
+name               = "valve_position"
+tags               = { equipment = "sterilisor 3", valve = "AB43" }
+node_id            = "ns=2;i=10849"
+collection_type    = "monitored"
+poll_rate	 	   = 10     # samples / minute.
+monitor_resolution = 100    # ms 
+deadband_absolute  = 32    # Absolute max difference for a value not to be collected
+deadband_relative  = 0.0    # Relative max difference for a value not to be collected
