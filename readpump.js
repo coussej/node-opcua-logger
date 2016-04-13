@@ -1,41 +1,64 @@
+"use strict"
+
 var async = require("async");
 var opcua = require("node-opcua");
 
 function ReadPump(config, measurements, writepump) {
-	var dbname = config.name + ".db";
-	var path = require('path').resolve(__dirname, dbname);
-	
-	this.ua_server_url = config.url;
-	this.ua_client  = new opcua.OPCUAClient();
-	this.ua_session;
-	this.ua_subscription;
+	this.uaServerUrl = config.url;
+	this.uaClient  = new opcua.OPCUAClient();
+	this.uaSession;
+	this.uaSubscription;
 	this.measurements = measurements;
-	this.polled_nodes = [];
-	this.monitored_nodes = [];
+	this.polledNodes = [];
+	this.monitoredNodes = [];
 	this.writepump = writepump;
 }
 
 ReadPump.prototype.ConnectOPCUA = function (callback) {
-	this.ua_client.connect(this.ua_server_url, callback);
+	this.uaClient.connect(this.uaServerUrl, callback);
 }
 
 ReadPump.prototype.EstablishSession = function (callback) {
-	self = this;
-	this.ua_client.createSession(function(err, session){
+	let self = this;
+	this.uaClient.createSession(function(err, session){
 		if (err) {
 			callback(err);
 		} else {
-			self.ua_session = session;
+			self.uaSession = session;
 			callback(null);
 		}
 	});
 }
 
-ReadPump.prototype.InstallSubscription = function (callback) {
-	self = this;
+ReadPump.prototype.ExecuteOPCUAReadRequest = function (nodes, useSourceTimestamp, callback) {
+	let self = this;
+	let d = new Date;
+	let n = Math.round(d.getTime() / 1000) * 1000; // date in ms rounded to the second.
+	
+	self.uaSession.read(nodes, 0, function (err, nodesToRead, dataValues) {
+		if (err) {
+			callback(err, []);
+			return;
+		}
+		let results = []
+		dataValues.forEach(
+			function(dv, i) {		
+				let res = dataValueToPoint(nodesToRead[i], dv)
+				if (!useSourceTimestamp) {
+					res.values.time = n;
+				}
+				results.push(res);
+			}
+		);
+		callback(null, results);
+	});
+}	
+	
+ReadPump.prototype.StartMonitoring = function (callback) {
+	let self = this;
 	
 	// create an OPCUA subscription	
-	self.ua_subscription = new opcua.ClientSubscription(self.ua_session, {
+	self.uaSubscription = new opcua.ClientSubscription(self.uaSession, {
 		requestedPublishingInterval: 1000,
 		requestedLifetimeCount: 10,
 		requestedMaxKeepAliveCount: 2,
@@ -43,7 +66,7 @@ ReadPump.prototype.InstallSubscription = function (callback) {
 		publishingEnabled: true,
 		priority: 1
 	});	
-	sub = self.ua_subscription;
+	let sub = self.uaSubscription;
 	sub.on("started", function() {
 		console.log("subscription", sub.subscriptionId, "started");
 	}).on("keepalive", function() {
@@ -55,13 +78,12 @@ ReadPump.prototype.InstallSubscription = function (callback) {
 	
 	// install a monitored item on the subscription for each measurement in 
 	// the readpump's monitored items.
-	self.monitored_nodes.forEach(
-		function(node){
-			var ua_monitored_item = 
-				sub.monitor({
-					nodeId: opcua.resolveNodeId(node.node_id),
-					attributeId: opcua.AttributeIds.Value
-				},{	
+	self.monitoredNodes.forEach(
+		function (node) {
+			let uaMonitoredItem = 
+				sub.monitor(
+					node,
+					{	
 					clienthandle: 13,
 					samplingInterval: node.monitor_resolution,
 					discardOldest: true,
@@ -71,74 +93,124 @@ ReadPump.prototype.InstallSubscription = function (callback) {
 			 	function(err){
 					if (err) callback(err);
 				});
-			ua_monitored_item.on("changed", function(dataValue) {
-				var values = {
-					"value": dataValue.value.value,
-					"opcstatus": dataValue.statusCode.value,
-					"time": dataValue.sourceTimestamp.getTime()
-				};
-				var tags = node.tags;
-				if ((typeof values.value === "number" || 
-					 typeof values.value === "boolean") && 
-					!isNaN(values.value)) {
-					//self.writepump.AddPointToBuffer({
-					console.log({
-						measurement: node.name, 
-						values: values, 
-						tags:tags
-					});
-				} else {
-					console.log(node.name, ": Type [", typeof values.value, 
-								"] of value [", values.value,
-								"] not allowed.")
-				}				
+			uaMonitoredItem.on("changed", function(dataValue) {
+				console.log(dataValueToPoint(node, dataValue));
 			});
 
-			ua_monitored_item.on("err", function (err_message) {
-				console.log(ua_monitored_item.itemToMonitor.nodeId.toString(), 
+			uaMonitoredItem.on("err", function (err_message) {
+				console.log(uaMonitoredItem.itemToMonitor.nodeId.toString(), 
 							" ERROR :", err_message);
 			});
 
 			// add the monitored item to the node in the list.
-			node.ua_monitored_item = ua_monitored_item;
+			node.uaMonitoredItem = uaMonitoredItem;
 		}
 	);
-	
 }
 
-ReadPump.prototype.InitializeMeasurements = function(callback) {
-	self = this;
-	var nodesToRead = [];
-	self.measurements.forEach(function(m){
-		nodesToRead.push({
-			nodeId: m.node_id,
-			attributeId: opcua.AttributeIds.Value
+ReadPump.prototype.StartPolling = function (callback) {
+	let self = this;
+	
+	// install a schedule that triggers every second.
+	let schedule = require('node-schedule');
+	let rule = new schedule.RecurrenceRule();
+	rule.second = new schedule.Range(0, 59, 1);
+
+	let job = schedule.scheduleJob(rule, function(){
+		let d = new Date();
+		let s = d.getSeconds();
+		console.log('Triggered at:', new Date());
+		
+		let nodesToRead = self.polledNodes.filter(function (node) {
+			return s % node.pollInterval === 0
 		});
+		
+		if (nodesToRead.length > 0) {
+			self.ExecuteOPCUAReadRequest(nodesToRead, false, function(err, results){
+				// For some reason, I can't pass waterfall_next as the callback 
+				// function. This however works.
+				console.log(results);
+			});		
+		}
 	});
+}
+
+ReadPump.prototype.InitializeMeasurements = function () {
+	let self = this;
+	self.measurements.forEach(function(m) {
+		if (m.hasOwnProperty("collectionType")) {
+			switch (m.collectionType) {
+				case "monitored":
+					if (m.hasOwnProperty("monitorResolution")) {
+						self.monitoredNodes.push({
+							name: m.name,
+							nodeId: m.nodeId,
+							attributeId: opcua.AttributeIds.Value,
+							tags: m.tags,
+							monitorResolution: m.monitorResolution,
+							deadbandAbsolute: m.deadbandAbsolute || 0,
+							deadbandRelative: m.deadbandRelative || 0
+						});	
+					} else {
+						console.log("Measurement was specified as monitored but has no monitor_resolution", m);
+					}
+					break;
+				case "polled":
+					if (m.hasOwnProperty("pollRate") 
+						&& m.pollRate >= 1 
+						&& m.pollRate <= 60) {					
+						var pollInterval = Math.round(60 / m.pollRate);
+						while (60 % pollInterval !== 0) {
+							pollInterval += 1;
+						}
+						self.polledNodes.push({
+							name: m.name,
+							nodeId: m.nodeId,
+							attributeId: opcua.AttributeIds.Value,
+							tags: m.tags,
+							pollInterval: pollInterval,
+							deadbandAbsolute: m.deadbandAbsolute || 0,
+							deadbandRelative: m.deadbandRelative || 0
+						});	
+					} else {
+						console.log("Measurement was specified as polled but has no or invalid poll_rate", m);
+					}
+					break;
+				default:
+					console.log("Invalid collection type for measurement", m);
+			}
+		} else {
+			console.log("Property collection_type not found for measurement", m);
+		}		
+	});
+}
+
+ReadPump.prototype.VerifyMeasurements = function(callback) {
+	let self = this;
 	
 	async.waterfall([
 		// execute read request
 		function(waterfall_next) {
-			self.ua_session.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
+			self.ExecuteOPCUAReadRequest(self.measurements, true, function(err, results){
 				// For some reason, I can't pass waterfall_next as the callback 
-				// function to read(). This however works.
-				waterfall_next(err, nodesToRead, dataValues);
+				// function. This however works.
+				console.log(results);
+				waterfall_next(err, results);
 			});		
 		}, 
 		// process read response
-		function(nodes, dataValues, waterfall_next) {
-			dataValues.forEach(
-				function(datavalue, i) {
-					var sc = datavalue.statusCode
-					m = self.measurements[i];
+		function(results, waterfall_next) {
+			results.forEach(
+				function(res, i) {
+					let sc = res.tags.opcstatus
+					let m = res.measurement
 					// If the value could not be read, log. Otherwise, silently
 					// continue adding the measurement.
-					if (sc.value !== 0) {
-						console.log("Measurment [", m.name, " - ", m.node_id ,
-									"] could not be read. Status = [", sc.name, 
-									"], Description = [", sc.description, "].");
+					if (sc !== 0) {
+						console.log("Measurement [", m, " - ", m ,
+									"] could not be read. Status = [", sc, 
+									"]");
 					}
-					self.AddMeasurement(m);
 				}
 			);
 			waterfall_next(null);
@@ -150,50 +222,22 @@ ReadPump.prototype.InitializeMeasurements = function(callback) {
 	});
 }
 
-ReadPump.prototype.AddMeasurement = function (m) {
-	if (m.hasOwnProperty("collection_type")) {
-		switch (m.collection_type) {
-			case "monitored":
-				if (m.hasOwnProperty("monitor_resolution")) {
-					this.monitored_nodes.push({
-						name: m.name,
-						node_id: m.node_id,
-						tags: m.tags,
-						monitor_resolution: m.monitor_resolution,
-						deadband_absolute: m.deadband_absolute || 0,
-						deadband_relative: m.deadband_relative || 0
-					});	
-				} else {
-					console.log("Measurement was specified as monitored but has no monitor_resolution", m);
-				}
-				break;
-			case "polled":
-				if (m.hasOwnProperty("poll_rate") 
-					&& m.poll_rate >= 1 
-					&& m.poll_rate <= 60) {					
-					var update_interval = math.Round(60 / m.poll_rate);
-					while (60 % update_interval !== 0) {
-						updateinterval += 1;
-					}
-					this.polled_nodes.push({
-						name: m.name,
-						node_id: m.node_id,
-						tags: m.tags,
-						update_interval: update_interval,
-						deadband_absolute: m.deadband_absolute || 0,
-						deadband_relative: m.deadband_relative || 0
-					});	
-				} else {
-					console.log("Measurement was specified as polled but has no or invalid poll_rate", m);
-				}
-				break;
-			default:
-				console.log("Invalid collection type for measurement", m);
-		}
-
-	} else {
-		console.log("Property collection_type not found for measurement", m);
-	}
+ReadPump.prototype.AddDataValueToWritePump = function(values) {
+	console.log(values);
+	//if ((typeof values.value === "number" || 
+	//	 typeof values.value === "boolean") && 
+	//	!isNaN(values.value)) {
+	//	//self.writepump.AddPointToBuffer({
+	//	console.log({
+	//		measurement: node.name, 
+	//		values: values, 
+	//		tags:tags
+	//	});
+	//} else {
+	//	console.log(node.name, ": Type [", typeof values.value, 
+	//				"] of value [", values.value,
+	//				"] not allowed.")
+	//}				
 }
 
 ReadPump.prototype.Run = function() {
@@ -204,14 +248,29 @@ ReadPump.prototype.Run = function() {
 	async.parallel({
 		monitoring: function(parallel_callback){
 			// install the subscription
-			self.InstallSubscription(parallel_callback);
+			self.StartMonitoring(parallel_callback);
 		},
 		polling: function(parallel_callback){
+			// start polling
+			self.StartPolling(parallel_callback);
 		}
 	},
 	function(err, results) {
 		// results is now equals to: {one: 1, two: 2}
 	});
+}
+
+function dataValueToPoint (node, dataValue) {
+	let tags = node.tags;
+	tags.opcstatus = dataValue.statusCode.value;
+	return {
+		measurement: node.name,
+		values: {
+			value: dataValue.value.value,
+			time: dataValue.sourceTimestamp.getTime()
+		}, 
+		tags: tags
+	};
 }
 
 

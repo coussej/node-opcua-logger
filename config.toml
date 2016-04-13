@@ -18,9 +18,19 @@ write_max_points = 1000
 [[measurements]]
 name               = "valve_position"
 tags               = { equipment = "sterilisor 3", valve = "AB43" }
-node_id            = "ns=2;i=10849"
-collection_type    = "monitored"
-poll_rate	 	   = 10     # samples / minute.
-monitor_resolution = 100    # ms 
-deadband_absolute  = 32    # Absolute max difference for a value not to be collected
-deadband_relative  = 0.0    # Relative max difference for a value not to be collected
+nodeId             = "ns=2;i=10849"
+collectionType     = "polled"
+pollRate           = 20     # samples / minute.
+monitorResolution  = 100    # ms 
+deadbandAbsolute   = 32     # Absolute max difference for a value not to be collected
+deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
+
+[[measurements]]
+name               = "valve_position"
+tags               = { equipment = "sterilisor 1", valve = "AC43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "polled"
+pollRate           = 10     # samples / minute.
+monitorResolution  = 500    # ms 
+deadbandAbsolute   = 32     # Absolute max difference for a value not to be collected
+deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
