@@ -9,8 +9,8 @@ function ReadPump(config, measurements, writepump) {
 	this.uaSession;
 	this.uaSubscription;
 	this.measurements = measurements;
-	this.polledNodes = [];
-	this.monitoredNodes = [];
+	this.polledMeasurements = [];
+	this.monitoredMeasurements = [];
 	this.writepump = writepump;
 }
 
@@ -32,8 +32,11 @@ ReadPump.prototype.EstablishSession = function (callback) {
 
 ReadPump.prototype.ExecuteOPCUAReadRequest = function (nodes, useSourceTimestamp, callback) {
 	let self = this;
-	let d = new Date;
-	let n = Math.round(d.getTime() / 1000) * 1000; // date in ms rounded to the second.
+	
+	// set a timestamp for the results. If useSourceTimestamp, set t = null.
+	// otherwise, round the current timestamp to seconds and convert back to 
+	// milliseconds
+	let t = useSourceTimestamp ? null : Math.round((new Date()).getTime() / 1000) * 1000; // date in ms rounded to the second.
 	
 	self.uaSession.read(nodes, 0, function (err, nodesToRead, dataValues) {
 		if (err) {
@@ -43,10 +46,7 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function (nodes, useSourceTimestamp
 		let results = []
 		dataValues.forEach(
 			function(dv, i) {		
-				let res = dataValueToPoint(nodesToRead[i], dv)
-				if (!useSourceTimestamp) {
-					res.values.time = n;
-				}
+				let res = dataValueToPoint(nodesToRead[i], dv, t)
 				results.push(res);
 			}
 		);
@@ -78,7 +78,7 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 	
 	// install a monitored item on the subscription for each measurement in 
 	// the readpump's monitored items.
-	self.monitoredNodes.forEach(
+	self.monitoredMeasurements.forEach(
 		function (node) {
 			let uaMonitoredItem = 
 				sub.monitor(
@@ -94,7 +94,8 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 					if (err) callback(err);
 				});
 			uaMonitoredItem.on("changed", function(dataValue) {
-				console.log(dataValueToPoint(node, dataValue));
+				let point = dataValueToPoint(node, dataValue);
+				self.writepump.AddPointsToBuffer([point]);
 			});
 
 			uaMonitoredItem.on("err", function (err_message) {
@@ -119,17 +120,31 @@ ReadPump.prototype.StartPolling = function (callback) {
 	let job = schedule.scheduleJob(rule, function(){
 		let d = new Date();
 		let s = d.getSeconds();
-		console.log('Triggered at:', new Date());
 		
-		let nodesToRead = self.polledNodes.filter(function (node) {
-			return s % node.pollInterval === 0
+		let nodesToRead = self.polledMeasurements.filter(function (m) {
+			return s % m.pollInterval === 0
 		});
 		
 		if (nodesToRead.length > 0) {
 			self.ExecuteOPCUAReadRequest(nodesToRead, false, function(err, results){
-				// For some reason, I can't pass waterfall_next as the callback 
-				// function. This however works.
+				if (err) {
+					callback(err);
+					return;
+				}
+				
+				// filter the results. Check for deadband. If all checks pass, set
+				// the measurement's lastValue
+				results = results.filter(function (p) {
+					if (PointHasGoodOrDifferentBadStatus(p) && PointIsValid(p)) {
+						if (PointIsWithinDeadband(p)) return false;
+						p.measurement.lastValue = p.value;
+						p.measurement.lastOpcstatus = p.opcstatus;
+						return true;
+					} 
+				});
+				// TODO: add to writepump			
 				console.log(results);
+				//self.writepump.AddPointsToBuffer(results);
 			});		
 		}
 	});
@@ -142,14 +157,16 @@ ReadPump.prototype.InitializeMeasurements = function () {
 			switch (m.collectionType) {
 				case "monitored":
 					if (m.hasOwnProperty("monitorResolution")) {
-						self.monitoredNodes.push({
+						self.monitoredMeasurements.push({
 							name: m.name,
 							nodeId: m.nodeId,
 							attributeId: opcua.AttributeIds.Value,
 							tags: m.tags,
 							monitorResolution: m.monitorResolution,
 							deadbandAbsolute: m.deadbandAbsolute || 0,
-							deadbandRelative: m.deadbandRelative || 0
+							deadbandRelative: m.deadbandRelative || 0,
+							lastValue: null,
+							lastOpcstatus: null
 						});	
 					} else {
 						console.log("Measurement was specified as monitored but has no monitor_resolution", m);
@@ -163,14 +180,16 @@ ReadPump.prototype.InitializeMeasurements = function () {
 						while (60 % pollInterval !== 0) {
 							pollInterval += 1;
 						}
-						self.polledNodes.push({
+						self.polledMeasurements.push({
 							name: m.name,
 							nodeId: m.nodeId,
 							attributeId: opcua.AttributeIds.Value,
 							tags: m.tags,
 							pollInterval: pollInterval,
 							deadbandAbsolute: m.deadbandAbsolute || 0,
-							deadbandRelative: m.deadbandRelative || 0
+							deadbandRelative: m.deadbandRelative || 0,
+							lastValue: null,
+							lastOpcstatus: null
 						});	
 					} else {
 						console.log("Measurement was specified as polled but has no or invalid poll_rate", m);
@@ -202,7 +221,7 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 		function(results, waterfall_next) {
 			results.forEach(
 				function(res, i) {
-					let sc = res.tags.opcstatus
+					let sc = res.opcstatus
 					let m = res.measurement
 					// If the value could not be read, log. Otherwise, silently
 					// continue adding the measurement.
@@ -222,24 +241,6 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 	});
 }
 
-ReadPump.prototype.AddDataValueToWritePump = function(values) {
-	console.log(values);
-	//if ((typeof values.value === "number" || 
-	//	 typeof values.value === "boolean") && 
-	//	!isNaN(values.value)) {
-	//	//self.writepump.AddPointToBuffer({
-	//	console.log({
-	//		measurement: node.name, 
-	//		values: values, 
-	//		tags:tags
-	//	});
-	//} else {
-	//	console.log(node.name, ": Type [", typeof values.value, 
-	//				"] of value [", values.value,
-	//				"] not allowed.")
-	//}				
-}
-
 ReadPump.prototype.Run = function() {
 	var self = this;
 	
@@ -255,23 +256,78 @@ ReadPump.prototype.Run = function() {
 			self.StartPolling(parallel_callback);
 		}
 	},
-	function(err, results) {
+	function(err) {
 		// results is now equals to: {one: 1, two: 2}
 	});
 }
 
-function dataValueToPoint (node, dataValue) {
-	let tags = node.tags;
-	tags.opcstatus = dataValue.statusCode.value;
-	return {
-		measurement: node.name,
-		values: {
-			value: dataValue.value.value,
-			time: dataValue.sourceTimestamp.getTime()
-		}, 
-		tags: tags
+function dataValueToPoint (measurement, dataValue, customTimestamp) {
+	let point = {
+		measurement: measurement, 
+		value: dataValue.value ? dataValue.value.value : 0,
+		opcstatus: dataValue.statusCode.name,
+		timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
 	};
+	
+	if (customTimestamp) point.timestamp = customTimestamp;
+	
+	return point;
 }
 
+function PointHasGoodOrDifferentBadStatus(p) {
+	let curr = p.opcstatus;
+	let prev = p.measurement.lastOpcstatus;
+	
+	if (curr === "Good" || curr !== prev) return true;
+	return false;
+}
+
+function PointIsValid(p) {
+	// check if the value is a type that we can handle (number or a bool).
+	return (
+		(  typeof p.value === "number" 
+		|| typeof p.value === "boolean"
+		)  && !isNaN(p.value)
+	)
+}
+
+function PointIsWithinDeadband(p) {
+	// some vars for shorter statements later on.
+	let curr = p.value;
+	let prev = p.measurement.lastValue;
+	
+	let dba = p.measurement.deadbandAbsolute;
+	let dbr = p.measurement.deadbandRelative;
+	
+	// return early if the type of the previous value is not the same as the current.
+	// this will also return when this is the first value and prev is still undefined.
+	if (typeof curr !== typeof prev) return false;
+	
+	// calculate deadbands based on value type. For numbers, make the
+	// calculations for both absolute and relative if they are set. For bool,
+	// just check if a deadband has been set and if the value has changed.
+	switch (typeof curr) {
+		case "number":
+			if (dba > 0 && Math.abs(curr - prev) < dba) {
+				// console.log("New value is within absolute deadband.", p);
+				return true;
+			}
+			if (dbr > 0 && Math.abs(curr - prev) < Math.abs(prev) * dbr) {
+				// console.log("New value is within relative deadband.", p);
+				return true;
+			}
+			break;
+		case "boolean":
+			if (dba > 0 && prev === curr) 
+				// console.log("New value is within bool deadband.", p);
+				return true;
+			break;
+		default:
+			console.log("unexpected type for deadband calc", p);
+	}	
+	
+	// if we get here, value is not within any deadband. Return false;
+	return false;
+}
 
 module.exports = ReadPump;
