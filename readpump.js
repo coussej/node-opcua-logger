@@ -12,22 +12,42 @@ function ReadPump(config, measurements, writepump) {
 	this.polledMeasurements = [];
 	this.monitoredMeasurements = [];
 	this.writepump = writepump;
+	this.poller;
 }
 
 ReadPump.prototype.ConnectOPCUA = function (callback) {
-	this.uaClient.connect(this.uaServerUrl, callback);
-}
-
-ReadPump.prototype.EstablishSession = function (callback) {
 	let self = this;
-	this.uaClient.createSession(function(err, session){
+	self.uaClient.connect(self.uaServerUrl, function(err) {
 		if (err) {
 			callback(err);
-		} else {
+			return;
+		}
+		self.uaClient.createSession(function(err, session) {
+			if (err) {
+				callback(err);
+				return;
+			}
 			self.uaSession = session;
 			callback(null);
-		}
+		});
 	});
+}
+
+ReadPump.prototype.DisconnectOPCUA = function (callback) {
+	let self = this;
+	if (self.uaSession) {
+		self.uaSession.close(function (err) {
+			if(err) {
+				console.log("session close failed", err);
+			}
+			self.uaSession = null;
+			self.DisconnectOPCUA(callback)
+		});	
+	} else {
+		self.uaClient.disconnect(function () {
+			callback();
+		})
+	}
 }
 
 ReadPump.prototype.ExecuteOPCUAReadRequest = function (nodes, useSourceTimestamp, callback) {
@@ -79,13 +99,13 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 	// install a monitored item on the subscription for each measurement in 
 	// the readpump's monitored items.
 	self.monitoredMeasurements.forEach(
-		function (node) {
+		function (m) {
 			let uaMonitoredItem = 
 				sub.monitor(
-					node,
+					m,
 					{	
 					clienthandle: 13,
-					samplingInterval: node.monitor_resolution,
+					samplingInterval: m.monitorResolution,
 					discardOldest: true,
 					queueSize: 1000
 				},
@@ -94,8 +114,13 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 					if (err) callback(err);
 				});
 			uaMonitoredItem.on("changed", function(dataValue) {
-				let point = dataValueToPoint(node, dataValue);
-				self.writepump.AddPointsToBuffer([point]);
+				let p = dataValueToPoint(m, dataValue);
+				if (PointIsValid(p)) {
+					self.writepump.AddPointsToBuffer([p]);
+				} else {
+					console.log("Invalid point returned from subscription.", p);
+				}
+				
 			});
 
 			uaMonitoredItem.on("err", function (err_message) {
@@ -103,8 +128,8 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 							" ERROR :", err_message);
 			});
 
-			// add the monitored item to the node in the list.
-			node.uaMonitoredItem = uaMonitoredItem;
+			// add the monitored item to the measurement in the list.
+			m.uaMonitoredItem = uaMonitoredItem;
 		}
 	);
 }
@@ -117,7 +142,7 @@ ReadPump.prototype.StartPolling = function (callback) {
 	let rule = new schedule.RecurrenceRule();
 	rule.second = new schedule.Range(0, 59, 1);
 
-	let job = schedule.scheduleJob(rule, function(){
+	self.poller = schedule.scheduleJob(rule, function(){
 		let d = new Date();
 		let s = d.getSeconds();
 		
@@ -137,14 +162,16 @@ ReadPump.prototype.StartPolling = function (callback) {
 				results = results.filter(function (p) {
 					if (PointHasGoodOrDifferentBadStatus(p) && PointIsValid(p)) {
 						if (PointIsWithinDeadband(p)) return false;
+						// if we retain the point, we must update the measurment's
+						// last value!
 						p.measurement.lastValue = p.value;
 						p.measurement.lastOpcstatus = p.opcstatus;
 						return true;
 					} 
 				});
-				// TODO: add to writepump			
-				console.log(results);
-				//self.writepump.AddPointsToBuffer(results);
+				if (results.length > 0) {
+					self.writepump.AddPointsToBuffer(results);
+				}							
 			});		
 		}
 	});
@@ -208,12 +235,15 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 	let self = this;
 	
 	async.waterfall([
+		// connect opc
+		function(waterfall_next) {
+			self.ConnectOPCUA(waterfall_next)
+		},	
 		// execute read request
 		function(waterfall_next) {
 			self.ExecuteOPCUAReadRequest(self.measurements, true, function(err, results){
 				// For some reason, I can't pass waterfall_next as the callback 
 				// function. This however works.
-				console.log(results);
 				waterfall_next(err, results);
 			});		
 		}, 
@@ -225,9 +255,8 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 					let m = res.measurement
 					// If the value could not be read, log. Otherwise, silently
 					// continue adding the measurement.
-					if (sc !== 0) {
-						console.log("Measurement [", m, " - ", m ,
-									"] could not be read. Status = [", sc, 
+					if (sc !== "Good") {
+						console.log("Measurement [", m.name, "] could not be read. Status = [", sc, 
 									"]");
 					}
 				}
@@ -237,27 +266,49 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 	], 
 	// final callback
 	function(err) {
-		callback(err);
+		// close disconnect client
+		self.DisconnectOPCUA(function () {
+			callback(err);	
+		})
 	});
 }
 
-ReadPump.prototype.Run = function() {
+ReadPump.prototype.Run = function(callback) {
 	var self = this;
 	
-	// Start both the monitoring and the polling of the measurments. 
-	// In case of an error, close everything.
-	async.parallel({
-		monitoring: function(parallel_callback){
-			// install the subscription
-			self.StartMonitoring(parallel_callback);
-		},
-		polling: function(parallel_callback){
-			// start polling
-			self.StartPolling(parallel_callback);
+	self.InitializeMeasurements();
+		
+	async.waterfall([
+		// connect opc
+		function(waterfall_next) {
+			self.ConnectOPCUA(waterfall_next)
+		},	
+		// Start both the monitoring and the polling of the measurments. 
+		// In case of an error, close everything.
+		function(waterfall_next) {
+			async.parallel({
+				monitoring: function(parallel_callback){
+					// install the subscription
+					self.StartMonitoring(parallel_callback);
+				},
+				polling: function(parallel_callback){
+					// start polling
+					self.StartPolling(parallel_callback);
+				}
+			}, 
+			function(err) {
+				waterfall_next(err);
+			})
 		}
-	},
+	], 
+	// final callback
 	function(err) {
-		// results is now equals to: {one: 1, two: 2}
+		if (self.poller) self.poller.cancel;
+		self.poller = null;
+		// close disconnect client
+		self.DisconnectOPCUA(function () {
+			callback(err);	
+		})
 	});
 }
 

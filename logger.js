@@ -1,148 +1,32 @@
-var async = require("async");
-var influx = require("influx");
-var opcua = require("node-opcua");
-var toml = require("toml");
-var writepump = require("./writepump.js");
+"use strict"
 
-var config = loadConfig();
-console.log(config);
+let async = require("async");
+let readpump = require("./readpump.js");
+let writepump = require("./writepump.js");
+let toml = require("toml");
 
-// Get a writepump for the output and start it.
-var wp = new writepump(config.output);
-wp.Start();
+let config = loadConfig();
 
-// Declare OPC globals.
-var uaClient;         // the opc ua client.
-var uaSession;        // the session establiched after connecting the client.
-var uaSubscription;   // the subscription installed for the session.
-var uaMonitoredNodes = []; // the nodes that are mmonitored in the subscription.
+// start output handles
+let wp = new writepump(config.output);
+wp.Run();
 
-// Execute the OPC logic
-async.waterfall([
-	// Connect to OPC UA server.
-	function(waterfall_next) {
-		uaClient = new opcua.OPCUAClient();
-		uaClient.connect(config.input.url, waterfall_next);
-	},
-	// Connection succeeded. Establish a session.
-	function(waterfall_next){
-		uaClient.createSession(waterfall_next);
-	}, 
-	// Session established, assign to global.
-	function(session, waterfall_next){
-		uaSession = session;
-		waterfall_next(null);
-	}, 
-	// Execute a readRequest with all variables to verify the configuration.
-	function(waterfall_next){
-		var nodesToRead = [];
-		config.tags.forEach(function(tag){
-			nodesToRead.push({
-				nodeId: tag.node_id,
-				attributeId: opcua.AttributeIds.Value
-			});
-		});
-		uaSession.read(nodesToRead, 0, function(err, nodesToRead, dataValues){
-			// For some reason, I can't pass waterfall_next as the callback 
-			// function to read(). This however works.
-			waterfall_next(err, nodesToRead, dataValues);
+// get a readpump
+var rp = new readpump(config.input, config.measurements, wp);
+
+async.forever(
+	function(forever_next) {
+		rp.Run(function(err) {
+			console.log("An error occured in the Readpump.")
+			wait = config.failoverTimeout || 5000;
+			console.log("Restarting readpump in", wait, "seconds.")
+			setTimeout(forever_next, wait)
 		});
 	}, 
-	// Process the readRequest.
-	function(nodesToRead, dataValues, waterfall_next){
-		dataValues.forEach(
-			function(datavalue, i) {
-				var sc = datavalue.statusCode
-				if (sc.value == 0) {
-					console.log("Tag [", config.tags[i].name , 
-								"] verified. Value = [", 
-								datavalue.value.value, "].");
-					uaMonitoredNodes.push({
-						name: config.tags[i].name,
-						nodeId: config.tags[i].node_id,
-						updateInterval: config.tags[i].update_interval
-					});
-				} else {
-					console.log("Tag [", config.tags[i].name ,
-								"] could not be read. Status = [", sc.name, 
-								"], Description = [", sc.description, "].");
-				}           
-			}
-		);
-		waterfall_next(null);
-	}, 
-	// Install a subscription and start monitoring
-	function(waterfall_next) {
-		uaSubscription = new opcua.ClientSubscription(uaSession, {
-			requestedPublishingInterval: 1000,
-			requestedLifetimeCount: 10,
-			requestedMaxKeepAliveCount: 2,
-			maxNotificationsPerPublish: 1,
-			publishingEnabled: true,
-			priority: 10
-		});
-		uaSubscription.on("started", function() {
-			console.log("subscription started for 2 seconds - subscriptionId=", 
-						uaSubscription.subscriptionId);
-		}).on("keepalive", function() {
-			console.log("subscription", uaSubscription.subscriptionId, 
-						"keepalive");
-		}).on("terminated", function() {
-			var err = "subscription" + uaSubscription.subscriptionId +
-						   "was terminated" ;
-			waterfall_next(err);
-		});
-		
-		// Install a monitored item for each tag in uaMonitoredNodes
-		uaMonitoredNodes.forEach(
-			function(node){
-				var monitoredItem = uaSubscription.monitor({
-					nodeId: opcua.resolveNodeId(node.nodeId),
-					attributeId: opcua.AttributeIds.Value
-				},{	
-					clienthandle: 13,
-					samplingInterval: node.updateInterval,
-					discardOldest: true,
-					queueSize: 20
-				},
-				opcua.read_service.TimestampsToReturn.Both,
-				function(err){
-					if (err) console.log("ERR ", err);
-				});
-				
-				monitoredItem.on("changed", function(dataValue) {
-					var values = {
-						"value": dataValue.value.value,
-						"opcstatus": dataValue.statusCode.value,
-						"time": dataValue.sourceTimestamp.getTime()
-					};
-					var tags = {};
-					if ((typeof values.value === "number" || 
-						typeof values.value === "boolean") && 
-						!isNaN(values.value)) {
-						wp.AddPointToBuffer({tag: node.name, 
-											 values: values, 
-											 tags:tags});
-					} else {
-						console.log("Type [", typeof values.value, 
-									"] of value [", values.value,
-								   "] not allowed.")
-					}				
-				});
-				
-				monitoredItem.on("err", function (err_message) {
-					console.log(monitoredItem.itemToMonitor.nodeId.toString(), 
-								" ERROR :", err_message);
-				});
-				
-				// add the monitored item to the node in the list.
-				node.monitoredItem = monitoredItem;
-			}
-		);
+	function(err) {
+		console.log("Restarting readpump...")
 	}
-] , function(err, results) {
-    if (err) console.log("An error occured:", err);
-})
+);
 
 function loadConfig() {
 	var path = require("path").resolve(__dirname, 'config.toml');

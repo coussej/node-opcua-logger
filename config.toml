@@ -1,36 +1,37 @@
 [input]
-url = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
+url             = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
+failoverTimeout = 5000 # time to wait before reconnection in case of failure
 	
 [output]
 name             = "influx_1"
 type             = "influxdb"
-host             = "188.166.17.134"
+host             = "128.199.39.148"
 port             = 8086
 protocol         = "http"
 username         = ""
 password         = ""
 database         = "test"
 failoverTimeout  = 10000
-buffer_max_size  = 64
-write_interval   = 1000
-write_max_points = 1000
+bufferMaxSize    = 64
+writeInterval    = 3000
+writeMaxPoints   = 1000
 
+# A polled node:
 [[measurements]]
-name               = "valve_position"
-tags               = { equipment = "sterilisor 3", valve = "AB43" }
+name               = "Int32polled"
+tags               = { tag1 = "test", tag2 = "AB43" }
 nodeId             = "ns=2;i=10849"
 collectionType     = "polled"
 pollRate           = 20     # samples / minute.
-monitorResolution  = 100    # ms 
-deadbandAbsolute   = 32     # Absolute max difference for a value not to be collected
+deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
 deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
 
+# A monitored node
 [[measurements]]
-name               = "valve_position"
-tags               = { equipment = "sterilisor 1", valve = "AC43" }
+name               = "Int32monitored"
+tags               = { tag1 = "test", tag2 = "AB43" }
 nodeId             = "ns=2;i=10849"
-collectionType     = "polled"
-pollRate           = 10     # samples / minute.
-monitorResolution  = 500    # ms 
-deadbandAbsolute   = 32     # Absolute max difference for a value not to be collected
-deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
+collectionType     = "monitored"
+monitorResolution  = 1000    # ms 
+deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
+deadbandRelative   = 0    	# Relative max difference for a value not to be collected
