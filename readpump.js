@@ -196,7 +196,7 @@ ReadPump.prototype.InitializeMeasurements = function () {
 							lastOpcstatus: null
 						});	
 					} else {
-						console.log("Measurement was specified as monitored but has no monitor_resolution", m);
+						console.log("Measurement was specified as monitored but has no monitorResolution", m);
 					}
 					break;
 				case "polled":
@@ -219,14 +219,14 @@ ReadPump.prototype.InitializeMeasurements = function () {
 							lastOpcstatus: null
 						});	
 					} else {
-						console.log("Measurement was specified as polled but has no or invalid poll_rate", m);
+						console.log("Measurement was specified as polled but has no or invalid pollRate", m);
 					}
 					break;
 				default:
-					console.log("Invalid collection type for measurement", m);
+					console.log("Invalid collectionType for measurement", m);
 			}
 		} else {
-			console.log("Property collection_type not found for measurement", m);
+			console.log("Property collectionType not found for measurement", m);
 		}		
 	});
 }
