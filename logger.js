@@ -18,7 +18,7 @@ async.forever(
 	function(forever_next) {
 		rp.Run(function(err) {
 			console.log("An error occured in the Readpump.")
-			wait = config.failoverTimeout || 5000;
+			let wait = config.failoverTimeout || 5000;
 			console.log("Restarting readpump in", wait, "seconds.")
 			setTimeout(forever_next, wait)
 		});
