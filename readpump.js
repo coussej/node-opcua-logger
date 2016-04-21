@@ -58,6 +58,11 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function (nodes, useSourceTimestamp
 	// milliseconds
 	let t = useSourceTimestamp ? null : Math.round((new Date()).getTime() / 1000) * 1000; // date in ms rounded to the second.
 	
+	if (!self.uaSession) {
+		callback("The readpump has no active session. Can't read.");
+		return;
+	}
+	
 	self.uaSession.read(nodes, 0, function (err, nodesToRead, dataValues) {
 		if (err) {
 			callback(err, []);
@@ -92,7 +97,8 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 	}).on("keepalive", function() {
 		console.log("subscription", sub.subscriptionId, "keepalive");
 	}).on("terminated", function() {
-		var err = "subscription" + sub.subscriptionId + "was terminated" ;
+		let err = "subscription" + sub.subscriptionId + "was terminated";
+		console.log(err);
 		callback(err);
 	});
 	
@@ -266,7 +272,7 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 	], 
 	// final callback
 	function(err) {
-		// close disconnect client
+		// close and disconnect client
 		self.DisconnectOPCUA(function () {
 			callback(err);	
 		})
@@ -289,11 +295,19 @@ ReadPump.prototype.Run = function(callback) {
 			async.parallel({
 				monitoring: function(parallel_callback){
 					// install the subscription
-					self.StartMonitoring(parallel_callback);
+					self.StartMonitoring(function (err) {
+						console.log("Monitoring error:", err);
+						parallel_callback("Monitoring error: " + err);
+					});
 				},
 				polling: function(parallel_callback){
 					// start polling
-					self.StartPolling(parallel_callback);
+					self.StartPolling(function (err) {
+						if (self.poller) self.poller.cancel();
+						self.poller = null;
+						console.log("Polling error:", err);
+						parallel_callback("Polling error: " + err);
+					});
 				}
 			}, 
 			function(err) {
@@ -303,8 +317,7 @@ ReadPump.prototype.Run = function(callback) {
 	], 
 	// final callback
 	function(err) {
-		if (self.poller) self.poller.cancel;
-		self.poller = null;
+		
 		// close disconnect client
 		self.DisconnectOPCUA(function () {
 			callback(err);	

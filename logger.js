@@ -17,7 +17,7 @@ var rp = new readpump(config.input, config.measurements, wp);
 async.forever(
 	function(forever_next) {
 		rp.Run(function(err) {
-			console.log("An error occured in the Readpump.")
+			console.log("An error occured in the Readpump:", err)
 			let wait = config.failoverTimeout || 5000;
 			console.log("Restarting readpump in", wait, "seconds.")
 			setTimeout(forever_next, wait)
