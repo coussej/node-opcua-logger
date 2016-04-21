@@ -95,7 +95,7 @@ ReadPump.prototype.StartMonitoring = function (callback) {
 	sub.on("started", function() {
 		console.log("subscription", sub.subscriptionId, "started");
 	}).on("keepalive", function() {
-		console.log("subscription", sub.subscriptionId, "keepalive");
+		//console.log("subscription", sub.subscriptionId, "keepalive");
 	}).on("terminated", function() {
 		let err = "subscription" + sub.subscriptionId + "was terminated";
 		console.log(err);
