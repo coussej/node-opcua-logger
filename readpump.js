@@ -280,10 +280,14 @@ ReadPump.prototype.VerifyMeasurements = function(callback) {
 }
 
 ReadPump.prototype.Run = function(callback) {
-	var self = this;
+	let self = this;
 	
 	self.InitializeMeasurements();
-		
+	
+	// declare 2 vars to avoid double callbacks 
+	let monitoringCallbackCalled = false;
+	let pollingCallbackCalled = false;
+	
 	async.waterfall([
 		// connect opc
 		function(waterfall_next) {
@@ -297,7 +301,12 @@ ReadPump.prototype.Run = function(callback) {
 					// install the subscription
 					self.StartMonitoring(function (err) {
 						console.log("Monitoring error:", err);
-						parallel_callback("Monitoring error: " + err);
+						if (!monitoringCallbackCalled) {
+							monitoringCallbackCalled = true;
+							parallel_callback("Monitoring error: " + err);
+						} else {
+							console.log('WARNING: monitoring callback already called');
+						}	
 					});
 				},
 				polling: function(parallel_callback){
@@ -306,7 +315,12 @@ ReadPump.prototype.Run = function(callback) {
 						if (self.poller) self.poller.cancel();
 						self.poller = null;
 						console.log("Polling error:", err);
-						parallel_callback("Polling error: " + err);
+						if (!pollingCallbackCalled) {
+							pollingCallbackCalled = true;
+							parallel_callback("Polling error: " + err);
+						} else {
+							console.log('WARNING: polling callback already called');
+						}
 					});
 				}
 			}, 
