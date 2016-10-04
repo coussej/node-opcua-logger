@@ -22,7 +22,7 @@ async.forever(
 			console.log("Restarting readpump in", wait, "seconds.")
 			setTimeout(forever_next, wait)
 		});
-	}, 
+	},
 	function(err) {
 		console.log("Restarting readpump...")
 	}

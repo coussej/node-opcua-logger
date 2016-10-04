@@ -1,7 +1,7 @@
 [input]
 url             = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
 failoverTimeout = 5000 # time to wait before reconnection in case of failure
-	
+
 [output]
 name             = "influx_1"
 type             = "influxdb"
@@ -19,19 +19,21 @@ writeMaxPoints   = 1000
 # A polled node:
 [[measurements]]
 name               = "Int32polled"
+dataType           = "number"
 tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=2;i=10849"
+nodeId             = "ns=37;s=10849"
 collectionType     = "polled"
-pollRate           = 20     # samples / minute.
+pollRate           = 60     # samples / minute.
 deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
 deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
 
 # A monitored node
 [[measurements]]
 name               = "Int32monitored"
+dataType           = "number"
 tags               = { tag1 = "test", tag2 = "AB43" }
 nodeId             = "ns=2;i=10849"
 collectionType     = "monitored"
-monitorResolution  = 1000    # ms 
+monitorResolution  = 1000    # ms
 deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
 deadbandRelative   = 0    	# Relative max difference for a value not to be collected
