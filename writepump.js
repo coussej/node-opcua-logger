@@ -6,7 +6,8 @@ let nedb = require("nedb");
 
 function WritePump(config) {
 	let dbname = config.name + ".db";
-	let path = require('path').resolve(__dirname, dbname);
+	let dir = process.env.BUFFER_LOCATION || __dirname
+	let path = require('path').resolve(dir, dbname);
 	
 	this.name = config.name;
 	this.config = config;
