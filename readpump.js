@@ -120,12 +120,11 @@ ReadPump.prototype.StartMonitoring = function(callback) {
                     });
             uaMonitoredItem.on("changed", function(dataValue) {
                 let p = dataValueToPoint(m, dataValue);
-                if (PointIsValid(p)) {
+                if (PointIsValid(p) && PointMatchesType(p)) {
                     self.writepump.AddPointsToBuffer([p]);
                 } else {
-                    console.log("Invalid point returned from subscription.", p);
+                    console.log("Invalid point returned from subscription.", PointIsValid(p), PointMatchesType(p));
                 }
-
             });
 
             uaMonitoredItem.on("err", function(err_message) {
@@ -165,21 +164,32 @@ ReadPump.prototype.StartPolling = function(callback) {
                 // filter the results. Check for deadband. If all checks pass, set
                 // the measurement's lastValue
                 results = results.filter(function(p) {
-                    if (PointHasGoodOrDifferentBadStatus(p) && PointIsValid(p)) {
-                        if (PointIsWithinDeadband(p)) return false;
-                        // if the OPC status is Bad, it's possible the OPC SampleServer
-                        // returned a value that is not of the correct datatype. Solve it.
-                        if (!(p.opcstatus === "Good") && !PointMatchesType(p)) {
-                            switch (p.dataType) {
+                    if (PointHasGoodOrDifferentBadStatus(p)) {
+                        if (!PointIsValid(p) || !PointMatchesType(p)) {
+                            // Set de default value for the type specified
+                            console.log("Invalid point:", p.measurement.name, p.measurement.nodeId.value, p.value)
+                            switch (p.measurement.dataType) {
                                 case "boolean":
                                     p.value = false
                                     break;
                                 case "number":
                                     p.value = 0
                                     break;
+                                case "string":
+                                    p.value = ""
+                                    break;
                                 default:
-
+                                    console.log("No valid datatype, ignoring point")
+                                    return false
                             }
+                        }
+
+                        // Check for deadband
+                        if (PointIsWithinDeadband(p)) return false;
+
+                        if (!PointMatchesType(p)) {
+                            console.log('Invalid type returned from OPC. Ignoring point', p)
+                            return false
                         }
                         // if we retain the point, we must update the measurment's
                         // last value!
@@ -205,6 +215,7 @@ ReadPump.prototype.InitializeMeasurements = function() {
                     if (m.hasOwnProperty("monitorResolution")) {
                         self.monitoredMeasurements.push({
                             name: m.name,
+                            dataType: m.dataType,
                             nodeId: m.nodeId,
                             attributeId: opcua.AttributeIds.Value,
                             tags: m.tags,
@@ -377,16 +388,18 @@ function PointHasGoodOrDifferentBadStatus(p) {
 function PointIsValid(p) {
     // check if the value is a type that we can handle (number or a bool).
     return (
-        (typeof p.value === "number" ||
-            typeof p.value === "boolean"
-        ) && !isNaN(p.value)
+        ((typeof p.value === "number" || typeof p.value === "boolean") && !isNaN(p.value))
+        || typeof p.value === "string"
     )
 }
 
 function PointMatchesType(p) {
     // check if the value is a type that we can handle (number or a bool).
-    console.log(p.measurement, typeof p.value === p.measurement.dataType, typeof p.value, p.measurement.dataType)
-    return typeof p.value === p.measurement.dataType
+    let match = (typeof p.value === p.measurement.dataType)
+    if (!match){
+        console.log(p.measurement, "Types don't match: ", typeof p.value, p.measurement.dataType)
+    }
+    return match
 }
 
 function PointIsWithinDeadband(p) {
@@ -419,6 +432,8 @@ function PointIsWithinDeadband(p) {
             if (dba > 0 && prev === curr)
             // console.log("New value is within bool deadband.", p);
                 return true;
+            break;
+        case "string":
             break;
         default:
             console.log("unexpected type for deadband calc", p);
