@@ -1,7 +1,5 @@
 # node-opcua-logger
-A logger for logging OPCUA data to InfluxDB (and possibly other later).
-
-> Note: still experimental, breaking changes to be expected !!!
+A logger for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
 
 This application will connect to an OPC UA server, subscribe to the measurements in your configuration and log them to an influxdb instance. It first buffers the data in a local db, so that in case influxdb is temporarily unavailable, your data is not lost.
 
