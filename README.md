@@ -61,8 +61,6 @@ tags               = { tag1 = "test", tag2 = "AB43" }
 nodeId             = "ns=2;i=10849"
 collectionType     = "monitored"
 monitorResolution  = 1000    # ms 
-deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
-deadbandRelative   = 0    	# Relative max difference for a value not to be collected
 ```
 
 ## Run
