@@ -5,7 +5,7 @@ var opcua = require("node-opcua");
 
 function ReadPump(config, measurements, writepump) {
     this.uaServerUrl = config.url;
-    this.uaClient = new opcua.OPCUAClient();
+    this.uaClient;
     this.uaSession;
     this.uaSubscription;
     this.measurements = measurements;
@@ -17,6 +17,7 @@ function ReadPump(config, measurements, writepump) {
 
 ReadPump.prototype.ConnectOPCUA = function(callback) {
     let self = this;
+    this.uaClient = new opcua.OPCUAClient();
     self.uaClient.connect(self.uaServerUrl, function(err) {
         if (err) {
             callback(err);
@@ -312,6 +313,7 @@ ReadPump.prototype.Run = function(callback) {
     // declare 2 vars to avoid double callbacks
     let monitoringCallbackCalled = false;
     let pollingCallbackCalled = false;
+    let reconnectErrorCalled = false;
 
     async.waterfall([
             // connect opc
@@ -321,6 +323,16 @@ ReadPump.prototype.Run = function(callback) {
             // Start both the monitoring and the polling of the measurments.
             // In case of an error, close everything.
             function(waterfall_next) {
+                self.uaClient.on("close", function () {
+                    console.log("close and abort");
+                    if (!reconnectErrorCalled) {
+                        reconnectErrorCalled = true;
+                        // close disconnect client
+                        self.monitoredMeasurements = [];
+                        self.polledMeasurements = [];
+                        callback('reconnect failed');
+                    }
+                });
                 async.parallel({
                         monitoring: function(parallel_callback) {
                             // install the subscription
