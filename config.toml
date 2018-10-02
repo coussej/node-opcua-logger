@@ -21,7 +21,7 @@ writeMaxPoints   = 1000
 name               = "Int32polled"
 dataType           = "number"
 tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=37;s=10849"
+nodeId             = "ns=2;i=10849"
 collectionType     = "polled"
 pollRate           = 60     # samples / minute.
 deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
