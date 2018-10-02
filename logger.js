@@ -11,20 +11,32 @@ let config = loadConfig();
 let wp = new writepump(config.output);
 wp.Run();
 
-// get a readpump
-var rp = new readpump(config.input, config.measurements, wp);
+let rps = [];
+// get the readpumps
+config.input.forEach(element => {
+	rps.push(new readpump({url: element.url, failoverTimeout: element.failoverTimeout}, element.measurements, wp))
+});
 
-async.forever(
-	function(forever_next) {
-		rp.Run(function(err) {
-			console.log("An error occured in the Readpump:", err)
-			let wait = config.failoverTimeout || 5000;
-			console.log("Restarting readpump in", wait, "seconds.")
-			setTimeout(forever_next, wait)
-		});
+async.each(rps,
+	function(rp, callback){
+		async.forever(
+			function(forever_next) {
+				rp.Run(function(err) {
+					console.log("An error occured in the Readpump:", err)
+					let wait = config.failoverTimeout || 5000;
+					console.log("Restarting readpump in", wait, "seconds.")
+					setTimeout(forever_next, wait)
+				});
+			},
+			function(err) {
+				console.log("Restarting readpump...")
+			}
+		);
 	},
 	function(err) {
-		console.log("Restarting readpump...")
+		if(err) {
+			console.log("Error")
+		}
 	}
 );
 
