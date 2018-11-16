@@ -17,7 +17,20 @@ function ReadPump(config, measurements, writepump) {
 
 ReadPump.prototype.ConnectOPCUA = function(callback) {
     let self = this;
-    this.uaClient = new opcua.OPCUAClient();
+
+	const options =
+	{
+		endpoint_must_exist: false,
+		keepSessionAlive: true,
+		connectionStrategy:
+		{
+			maxRetry: 10,
+			initialDelay: 2000,
+			maxDelay: 10*1000
+		}
+	};
+
+    this.uaClient = new opcua.OPCUAClient(options);
     self.uaClient.connect(self.uaServerUrl, function(err) {
         if (err) {
             callback(err);
@@ -217,6 +230,8 @@ ReadPump.prototype.InitializeMeasurements = function() {
                         self.monitoredMeasurements.push({
                             name: m.name,
                             dataType: m.dataType,
+                            isArray: m.isArray ? m.isArray : false,
+                            arrayIndex: m.arrayIndex,
                             nodeId: m.nodeId,
                             attributeId: opcua.AttributeIds.Value,
                             tags: m.tags,
@@ -377,12 +392,24 @@ ReadPump.prototype.Run = function(callback) {
 }
 
 function dataValueToPoint(measurement, dataValue, customTimestamp) {
-    let point = {
-        measurement: measurement,
-        value: dataValue.value ? dataValue.value.value : 0,
-        opcstatus: dataValue.statusCode.name,
-        timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
-    };
+    let point;
+    if (measurement.isArray == true) {
+        if (dataValue.value.value.constructor.name.search("Array") != -1 ) {
+            point = {
+                measurement: measurement,
+                value: dataValue.value ? dataValue.value.value[measurement.arrayIndex] : 0,
+                opcstatus: dataValue.statusCode.name,
+                timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
+            };
+        }
+    } else {
+        point = {
+            measurement: measurement,
+            value: dataValue.value ? dataValue.value.value : 0,
+            opcstatus: dataValue.statusCode.name,
+            timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
+        };
+    }
 
     if (customTimestamp) point.timestamp = customTimestamp;
 
