@@ -15,14 +15,13 @@ function WritePump(config) {
 		filename: path, 
 		autoload: true 
 	});
-	this.output = new influx({
+	this.output = new influx.InfluxDB({
 		host :           config.host,
 		port :           config.port, // optional, default 8086
 		protocol :       config.protocol, // optional, default 'http'
 		username :       config.username,
 		password :       config.password,
-		database :       config.database,
-		failoverTimeout: config.failoverTimout 
+		options  :       {timeout: config.failoverTimeout}
 	});
 }
 
@@ -48,16 +47,24 @@ WritePump.prototype.Run = function() {
 				function(docs, waterfall_next) {
 					//console.log(name, ": found", docs.length, "records in buffer.");
 					let ids = [];
-					let series = {};
+					let series = [];
 					docs.forEach(function(doc) {
 						ids.push(doc._id);
-						if (!(doc.s in series)) series[doc.s] = [];
-						series[doc.s].push([doc.v, doc.t]);
+						series.push({
+							measurement: doc.s,
+							tags: doc.t,
+							fields: {value: doc.v.value},
+							timestamp: new Date(doc.v.time),
+						});
 					});
 					
-					self.output.writeSeries(series, function(err, response){
+					self.output.writePoints(series, {database : self.config.database})
+					.then(() => {
+						waterfall_next(null, ids);
+					})
+					.catch(err => {
 						waterfall_next(err, ids);
-					});	
+					})
 				},
 				function(ids, waterfall_next) {
 					self.buffer.remove({_id: { $in: ids } }, { multi: true	}, waterfall_next)
@@ -65,6 +72,10 @@ WritePump.prototype.Run = function() {
 			], function (err, numberProcessed) {
 				if (err) {
 					console.log(self.name, err)
+					if (err.toString().search("database not found") != -1) {
+						console.log('Create Database ' + self.config.database);
+						self.output.createDatabase(self.config.database);
+					}
 				}
 				let wait = numberProcessed == writeLimit ? 0 : writeInterval
 				if (wait > 0) {
@@ -92,7 +103,7 @@ WritePump.prototype.AddPointsToBuffer = function(points) {
 	// buffer overhead would be to large. Immediatly transform to a format 
 	// that is easy for influx later on.
 	points.forEach(
-		function (p) {				
+		function (p) {
 			let entry = {
 				s: p.measurement.name, 
 				v: {
@@ -106,7 +117,7 @@ WritePump.prototype.AddPointsToBuffer = function(points) {
 			self.buffer.insert(entry, function (err, newDoc) {   
 				if (err) console.log(this.name, "Error writing to buffer. Entry:", entry, ", Err:", err);
 			});
-		}			
+		}
 	);
 }
 

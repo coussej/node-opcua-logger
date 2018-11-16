@@ -1,6 +1,67 @@
-[input]
+[[input]]
 url             = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
 failoverTimeout = 5000 # time to wait before reconnection in case of failure
+
+# A polled node:
+[[input.measurements]]
+name               = "Int32polled"
+dataType           = "number"
+tags               = { tag1 = "test", tag2 = "AB43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "polled"
+pollRate           = 60     # samples / minute.
+deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
+deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
+
+# A monitored node
+[[input.measurements]]
+name               = "Int32monitored"
+dataType           = "number"
+tags               = { tag1 = "test", tag2 = "AB43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "monitored"
+monitorResolution  = 1000    # ms
+deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
+deadbandRelative   = 0    	# Relative max difference for a value not to be collected
+
+# A monitored array node. Log element at arrayIndex
+[[input.measurements]]
+name               = "Uint32Array"
+dataType           = "number"
+isArray            = true
+arrayIndex         = 0
+tags               = { tag1 = "test", tag2 = "AB43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "monitored"
+monitorResolution  = 1000    # ms
+deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
+deadbandRelative   = 0    	# Relative max difference for a value not to be collected
+
+[[input]]
+url             = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
+failoverTimeout = 5000 # time to wait before reconnection in case of failure
+
+# A polled node:
+[[input.measurements]]
+name               = "Int32polled"
+dataType           = "number"
+tags               = { tag1 = "test", tag2 = "AB43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "polled"
+pollRate           = 60     # samples / minute.
+deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
+deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
+
+# A monitored node
+[[input.measurements]]
+name               = "Int32monitored"
+dataType           = "number"
+tags               = { tag1 = "test", tag2 = "AB43" }
+nodeId             = "ns=2;i=10849"
+collectionType     = "monitored"
+monitorResolution  = 1000    # ms
+deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
+deadbandRelative   = 0    	# Relative max difference for a value not to be collected
 
 [output]
 name             = "influx_1"
@@ -15,25 +76,3 @@ failoverTimeout  = 10000
 bufferMaxSize    = 64
 writeInterval    = 3000
 writeMaxPoints   = 1000
-
-# A polled node:
-[[measurements]]
-name               = "Int32polled"
-dataType           = "number"
-tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=37;s=10849"
-collectionType     = "polled"
-pollRate           = 60     # samples / minute.
-deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
-deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
-
-# A monitored node
-[[measurements]]
-name               = "Int32monitored"
-dataType           = "number"
-tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=2;i=10849"
-collectionType     = "monitored"
-monitorResolution  = 1000    # ms
-deadbandAbsolute   = 0 		# Absolute max difference for a value not to be collected
-deadbandRelative   = 0    	# Relative max difference for a value not to be collected

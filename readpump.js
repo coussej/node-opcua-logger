@@ -5,7 +5,7 @@ var opcua = require("node-opcua");
 
 function ReadPump(config, measurements, writepump) {
     this.uaServerUrl = config.url;
-    this.uaClient = new opcua.OPCUAClient();
+    this.uaClient;
     this.uaSession;
     this.uaSubscription;
     this.measurements = measurements;
@@ -17,6 +17,20 @@ function ReadPump(config, measurements, writepump) {
 
 ReadPump.prototype.ConnectOPCUA = function(callback) {
     let self = this;
+
+	const options =
+	{
+		endpoint_must_exist: false,
+		keepSessionAlive: true,
+		connectionStrategy:
+		{
+			maxRetry: 10,
+			initialDelay: 2000,
+			maxDelay: 10*1000
+		}
+	};
+
+    this.uaClient = new opcua.OPCUAClient(options);
     self.uaClient.connect(self.uaServerUrl, function(err) {
         if (err) {
             callback(err);
@@ -63,7 +77,7 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function(nodes, useSourceTimestamp,
         return;
     }
 
-    self.uaSession.read(nodes, 0, function(err, nodesToRead, dataValues) {
+    self.uaSession.read(nodes, 0, function(err, dataValues) {
         if (err) {
             callback(err, []);
             return;
@@ -71,7 +85,7 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function(nodes, useSourceTimestamp,
         let results = []
         dataValues.forEach(
             function(dv, i) {
-                let res = dataValueToPoint(nodesToRead[i], dv, t)
+                let res = dataValueToPoint(nodes[i], dv, t)
                 results.push(res);
             }
         );
@@ -216,6 +230,8 @@ ReadPump.prototype.InitializeMeasurements = function() {
                         self.monitoredMeasurements.push({
                             name: m.name,
                             dataType: m.dataType,
+                            isArray: m.isArray ? m.isArray : false,
+                            arrayIndex: m.arrayIndex,
                             nodeId: m.nodeId,
                             attributeId: opcua.AttributeIds.Value,
                             tags: m.tags,
@@ -312,6 +328,7 @@ ReadPump.prototype.Run = function(callback) {
     // declare 2 vars to avoid double callbacks
     let monitoringCallbackCalled = false;
     let pollingCallbackCalled = false;
+    let reconnectErrorCalled = false;
 
     async.waterfall([
             // connect opc
@@ -321,6 +338,16 @@ ReadPump.prototype.Run = function(callback) {
             // Start both the monitoring and the polling of the measurments.
             // In case of an error, close everything.
             function(waterfall_next) {
+                self.uaClient.on("close", function () {
+                    console.log("close and abort");
+                    if (!reconnectErrorCalled) {
+                        reconnectErrorCalled = true;
+                        // close disconnect client
+                        self.monitoredMeasurements = [];
+                        self.polledMeasurements = [];
+                        callback('reconnect failed');
+                    }
+                });
                 async.parallel({
                         monitoring: function(parallel_callback) {
                             // install the subscription
@@ -365,12 +392,24 @@ ReadPump.prototype.Run = function(callback) {
 }
 
 function dataValueToPoint(measurement, dataValue, customTimestamp) {
-    let point = {
-        measurement: measurement,
-        value: dataValue.value ? dataValue.value.value : 0,
-        opcstatus: dataValue.statusCode.name,
-        timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
-    };
+    let point;
+    if (measurement.isArray == true) {
+        if (dataValue.value.value.constructor.name.search("Array") != -1 ) {
+            point = {
+                measurement: measurement,
+                value: dataValue.value ? dataValue.value.value[measurement.arrayIndex] : 0,
+                opcstatus: dataValue.statusCode.name,
+                timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
+            };
+        }
+    } else {
+        point = {
+            measurement: measurement,
+            value: dataValue.value ? dataValue.value.value : 0,
+            opcstatus: dataValue.statusCode.name,
+            timestamp: dataValue.sourceTimestamp ? dataValue.sourceTimestamp.getTime() : (new Date()).getTime()
+        };
+    }
 
     if (customTimestamp) point.timestamp = customTimestamp;
 
