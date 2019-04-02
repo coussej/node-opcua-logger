@@ -63,7 +63,7 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function(nodes, useSourceTimestamp,
         return;
     }
 
-    self.uaSession.read(nodes, 0, function(err, nodesToRead, dataValues) {
+    self.uaSession.read(nodes, 0, function(err, dataValues) {
         if (err) {
             callback(err, []);
             return;
@@ -71,7 +71,7 @@ ReadPump.prototype.ExecuteOPCUAReadRequest = function(nodes, useSourceTimestamp,
         let results = []
         dataValues.forEach(
             function(dv, i) {
-                let res = dataValueToPoint(nodesToRead[i], dv, t)
+                let res = dataValueToPoint(nodes[i], dv, t)
                 results.push(res);
             }
         );
