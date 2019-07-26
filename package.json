@@ -1,16 +1,20 @@
 {
 	"name": "opcua-logger",
 	"description": "A logger for logging OPC UA data to InfluxDB",
-	"version": "0.0.2",
-	"private": true,
+	"version": "2.0.0",
 	"main": "logger.js",
 	"author": "Jeroen Coussement (@coussej)",
+	"license": "MIT",
 	"dependencies": {
-		"async": "1.5.2",
-		"influx": "4.1.0",
-		"node-opcua": "0.4.5",
+		"clock-tickr": "^0.1.0",
+		"fs-extra": "^8.1.0",
+		"influx": "5.4.0",
+		"log4js": "^4.5.1",
+		"node-opcua": "2.1.0",
 		"node-schedule": "1.1.0",
-		"toml": "2.3.0",
-		"nedb": "1.8.0"
+		"toml": "^2.3.0"
+	},
+	"devDependencies": {
+		"pkg": "4.4.0"
 	}
 }

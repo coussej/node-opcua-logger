@@ -1,19 +1,54 @@
-# node-opcua-logger
-A logger for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
+
+WIP v2.
+
+[![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
+
+# OPCUA logger for InfluxDB
+
+An application for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
 
 This application will connect to an OPC UA server, subscribe to the measurements in your configuration and log them to an influxdb instance. It first buffers the data in a local db, so that in case influxdb is temporarily unavailable, your data is not lost.
 
-## Installation
+Brought to you by [Factry](www.factry.io).
 
-Make sure you have a recent version of node installed (>4), then execute the following commands.
+## Features
 
-```
-$ git clone https://github.com/coussej/node-opcua-logger.git
-$ cd node-opcua-logger
-$ npm install
-```
+* Connect to any OPCUA compatible datasource.
+* Support for both polled and monitored logging of values.
+* Internal buffering mechanism to avoid data loss when connection to InfluxDB is lost.
+* Deploy as a single binary, no need to install dependencies on host system.
+* Cross-platform: binaries available for both windows, linux and mac.
+
+## How to run
+
+### From a prebuilt binary
+
+* Download a binary for your OS in the releases section.
+* Create a `config.toml` of `config.json` file (see configuration).
+* Data!
+
+### From source
+
+* Install a recent version of NodeJS on you system.
+* Clone this repository.
+* Run `npm install` in the project root.
+* Create a `config.toml` of `config.json` file (see configuration).
+* Run `npm run start`.
+* Data!
 
 ## Configuration
+
+### Environment variables
+
+The following settings are optional and controlled by setting environment variables.
+
+* CONFIG_FILE: path to the config file (see below). This defaults to `./config.toml`
+* LOG_FILE: when set, the application will also log to this file instead of only to stdout.
+* LOG_FILE_DAYS: number of days to keep logfiles. Defaults to 10.  
+
+### Config file
+
+The application expects a config file that contains all the details on which data you want to log. This can either be a TOML or a JSON file, whichever you prefer. The application will look for such a file in the current working directory on startup, unless you specifically specify a seperate path in the environment.
 
 Modify the `config.toml` file to match your configuration. The input section should contain the url of the OPC server (no advanced authentication supported yet).
 
@@ -62,9 +97,21 @@ nodeId             = "ns=2;i=10849"
 collectionType     = "monitored"
 monitorResolution  = 1000    # ms 
 ```
+     
+## Contributing
 
-## Run
+1. Fork it!
+2. Create your feature branch: `git checkout -b my-new-feature`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin my-new-feature`
+5. Submit a pull request
 
-```
-$ node logger.js
-```
+## Credits
+
+* Jeroen Coussement - [@coussej](https://twitter.com/coussej) - [coussej.github.io](http://coussej.github.io) - [factry.io](https://www.factry.io)
+* Etienne Rossignon - [@gadz_er](https://twitter.com/gadz_er) - for creating the fantastic [node-opcua](https://github.com/node-opcua/node-opcua) library.
+
+
+## License
+
+MIT
