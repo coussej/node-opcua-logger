@@ -3,6 +3,8 @@ A logger for logging OPCUA data to InfluxDB (and possibly other later). Has been
 
 This application will connect to an OPC UA server, subscribe to the measurements in your configuration and log them to an influxdb instance. It first buffers the data in a local db, so that in case influxdb is temporarily unavailable, your data is not lost.
 
+> Note: we started working on v2 in a separate branch.
+
 ## Installation
 
 Make sure you have a recent version of node installed (>4), then execute the following commands.
