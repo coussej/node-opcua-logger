@@ -1,4 +1,3 @@
-
 WIP v2.
 
 [![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
@@ -44,7 +43,8 @@ The following settings are optional and controlled by setting environment variab
 
 * CONFIG_FILE: path to the config file (see below). This defaults to `./config.toml`
 * LOG_FILE: when set, the application will also log to this file instead of only to stdout.
-* LOG_FILE_DAYS: number of days to keep logfiles. Defaults to 10.  
+* LOG_FILE_DAYS: number of days to keep logfiles. Defaults to 10.
+* BUFFER_PATH: a directory path in which to store the buffer files. By default, a `./data` folder will be created in the current working directory   
 
 ### Config file
 

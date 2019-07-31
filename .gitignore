@@ -1,6 +1,9 @@
 # buffer database
 *.db
 
+# data folders created by app
+data/**/*
+
 # Logs
 logs
 *.log
@@ -25,6 +28,7 @@ coverage
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
+release
 
 # Dependency directory
 node_modules

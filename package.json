@@ -5,14 +5,19 @@
 	"main": "logger.js",
 	"author": "Jeroen Coussement (@coussej)",
 	"license": "MIT",
+	"scripts": {
+		"start": "node ./src/index.js"
+	},
 	"dependencies": {
+		"ajv": "^6.10.2",
 		"clock-tickr": "^0.1.0",
 		"fs-extra": "^8.1.0",
 		"influx": "5.4.0",
 		"log4js": "^4.5.1",
-		"node-opcua": "2.1.0",
+		"node-opcua": "0.7.3",
 		"node-schedule": "1.1.0",
-		"toml": "^2.3.0"
+		"toml": "^2.3.0",
+		"underscore": "^1.9.1"
 	},
 	"devDependencies": {
 		"pkg": "4.4.0"
