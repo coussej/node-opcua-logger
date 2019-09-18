@@ -3,15 +3,13 @@ let log = require('log4js').getLogger('influx')
 
 let INFLUX = null
 
-console.log(process.env.TEST)
-
 async function start (url) {
   INFLUX = new Influx.InfluxDB(url)
   let host = (await INFLUX.ping(5000))[0]
   if (host.online) {
     log.info(`${host.url.host} responded in ${host.rtt}ms running ${host.version}`)
   } else {
-    log.info(`${host.url.host} is offline :(`)
+    log.warn(`${host.url.host} is offline :(`)
   }
 }
 
@@ -21,8 +19,7 @@ async function write (points) {
     tags.status = p.status
 
     let fields = { value: p.value }
-    if (p.metric.datatype === 'boolean') fields.value_int = p.value * 1
-
+    if (p.metric.datatype === 'boolean') fields.value_num = p.value * 1
     return {
       measurement: p.metric.measurement,
       tags,
