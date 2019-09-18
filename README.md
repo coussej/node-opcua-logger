@@ -14,6 +14,7 @@ Brought to you by [Factry](www.factry.io).
 
 * Connect to any OPCUA compatible datasource.
 * Support for both polled and monitored logging of values.
+* Logs numbers, booleans and strings. For booleans, the value is recorded as a boolean, but a field `value_num` is added containing 1/0 depending on the `value`.
 * Internal buffering mechanism to avoid data loss when connection to InfluxDB is lost.
 * Deploy as a single binary, no need to install dependencies on host system.
 * Cross-platform: binaries available for both windows, linux and mac.
@@ -110,7 +111,6 @@ monitorResolution  = 1000    # ms
 
 * Jeroen Coussement - [@coussej](https://twitter.com/coussej) - [coussej.github.io](http://coussej.github.io) - [factry.io](https://www.factry.io)
 * Etienne Rossignon - [@gadz_er](https://twitter.com/gadz_er) - for creating the fantastic [node-opcua](https://github.com/node-opcua/node-opcua) library.
-
 
 ## License
 
