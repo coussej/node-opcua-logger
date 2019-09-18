@@ -159,6 +159,12 @@ async function _processBufferFile (bufferFile) {
   try {
     let file = await fs.readFile(filepathQueue)
     points = JSON.parse(file)
+    points
+      .map(p => {
+        p.timestamp = new Date(p.timestamp)
+        return p
+      }) // parse date strings
+      .filter(p => !isNaN(p.timestamp)) // remove any invalid dates (should not happen)
   } catch (e) {
     fileError = true
     log.error('Failed to load bufferfile',
