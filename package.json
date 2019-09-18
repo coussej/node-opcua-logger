@@ -14,7 +14,7 @@
 		"fs-extra": "^8.1.0",
 		"influx": "5.4.0",
 		"log4js": "^4.5.1",
-		"node-opcua": "0.7.3",
+		"node-opcua": "2.1.7",
 		"node-schedule": "1.1.0",
 		"toml": "^2.3.0",
 		"underscore": "^1.9.1"

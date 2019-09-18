@@ -14,14 +14,15 @@ const log = log4js.getLogger('opcuaclient')
 
 const TICKR = new ClockTickr({ interval: 1000 })
 const EVENTS = new EventEmitter()
-const UACLIENT = new opcua.OPCUAClient({
+const UACLIENT = opcua.OPCUAClient.create({
   applicationName: 'factry-opcua-logger',
   clientName: 'factry-opcua-logger',
   connectionStrategy: {
     maxRetry: 3,
     initialDelay: 1000,
     maxDelay: 10000 },
-  keepSessionAlive: true
+  keepSessionAlive: true,
+  endpoint_must_exist: false
 })
 
 let UACONNECTIONACTIVE = false
@@ -122,7 +123,7 @@ async function _connectUA (endpointUrl) {
     requestedLifetimeCount: 10,
     publishingEnabled: true
   }
-  UASUBSCRIPTION = new opcua.ClientSubscription(UASESSION, subOptions)
+  UASUBSCRIPTION = opcua.ClientSubscription.create(UASESSION, subOptions)
   UASUBSCRIPTION
     .on('started', () => {
       log.info('Installed subscription on session.', { ID: UASUBSCRIPTION.subscriptionId })
@@ -197,9 +198,10 @@ async function _executePoll (metrics, timestamp) {
 function _datavalueToPoint (metric, datavalue, timestamp) {
   let val = datavalue.value ? datavalue.value.value : 0
   let stat = datavalue.statusCode.name
-  let ts = timestamp
+  let ts = timestamp || datavalue.sourceTimestamp
   if (!ts) {
-    ts = datavalue.sourceTimestamp ? datavalue.sourceTimestamp : new Date()
+    ts = new Date()
+    stat = 'BadNoTimestamp'
   }
   return new Point(val, stat, ts, metric)
 }
@@ -247,15 +249,17 @@ function _addMonitoredMetric (metric) {
   let samplingInterval = metric.interval
     ? Math.max(metric.interval, 1) : 1000
 
-  let uaMonitoredItem = UASUBSCRIPTION.monitor({
-    nodeId: metric.nodeId,
-    attributeId: opcua.AttributeIds.Value
-  }, {
-    clienthandle: 13,
-    samplingInterval: samplingInterval,
-    discardOldest: true,
-    queueSize: 1000
-  }, opcua.read_service.TimestampsToReturn.Both)
+  let uaMonitoredItem = opcua.ClientMonitoredItem.create(
+    UASUBSCRIPTION,
+    {
+      nodeId: metric.nodeId,
+      attributeId: opcua.AttributeIds.Value
+    }, {
+      clienthandle: 13,
+      samplingInterval: samplingInterval,
+      discardOldest: true,
+      queueSize: 100
+    }, opcua.TimestampsToReturn.Both)
 
   uaMonitoredItem
     .on('changed', (datavalue) => {
