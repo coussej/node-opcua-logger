@@ -16,6 +16,7 @@ const WRITE_BATCHSIZE = process.env.WRITE_BATCHSIZE || 10
 
 let ABORTED = false
 let MEMBUFFER = []
+let SEQUENTIAL_WRITE_ERRORS = 0
 let WRITEFUNC = (points) => console.log(points)
 
 //
@@ -110,9 +111,15 @@ async function _processBuffer () {
         wait = 0
         log.warn('MaxBatchSize exceeded.', { max: WRITE_BATCHSIZE })
       }
+      SEQUENTIAL_WRITE_ERRORS = 0
     } catch (e) {
       log.error('Failed to write points from membuffer.',
         { error: e.message })
+
+      SEQUENTIAL_WRITE_ERRORS++
+      wait = SEQUENTIAL_WRITE_ERRORS > 10 ? 20000 : 5000
+      log.error(`Will try again in ${wait / 1000}s.`)
+
       // restore the errored points to the membuffer
       MEMBUFFER.splice(0, 0, ...points)
     }
