@@ -2,6 +2,7 @@ let opcua = require('node-opcua')
 let Point = require('./point.js')
 let EventEmitter = require('events')
 let ClockTickr = require('clock-tickr')
+let path = require('path')
 
 const log4js = require('log4js')
 const log = log4js.getLogger('opcuaclient')
@@ -16,6 +17,7 @@ const TICKR = new ClockTickr({ interval: 1000 })
 const EVENTS = new EventEmitter()
 const UACLIENT = opcua.OPCUAClient.create({
   applicationName: 'factry-opcua-logger',
+  certificateFile: path.resolve(__dirname, '../certificates/client_selfsigned_cert.pem'),
   clientName: 'factry-opcua-logger',
   connectionStrategy: {
     maxRetry: 3,

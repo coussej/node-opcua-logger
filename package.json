@@ -6,7 +6,8 @@
 	"author": "Jeroen Coussement (@coussej)",
 	"license": "MIT",
 	"scripts": {
-		"start": "node ./src/index.js"
+		"start": "node ./src/index.js",
+		"postinstall": "node node_modules/node-opcua-client/test_helpers/create_certificates.js certificate -s -a urn:factry.io/opcua -o ./certificates/client_selfsigned_cert.pem"
 	},
 	"dependencies": {
 		"ajv": "^6.10.2",
@@ -14,10 +15,8 @@
 		"fs-extra": "^8.1.0",
 		"influx": "5.4.0",
 		"log4js": "^4.5.1",
-		"node-opcua": "2.1.7",
-		"node-schedule": "1.1.0",
-		"toml": "^2.3.0",
-		"underscore": "^1.9.1"
+		"node-opcua": "2.1.9",
+		"toml": "^2.3.0"
 	},
 	"devDependencies": {
 		"pkg": "4.4.0"
