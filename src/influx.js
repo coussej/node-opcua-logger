@@ -15,13 +15,13 @@ async function start (url) {
 
 async function write (points) {
   let pts = points.map((p) => {
-    let tags = p.metric.tags || {}
+    let tags = p.tags || {}
     tags.status = p.status
 
     let fields = { value: p.value }
-    if (p.metric.datatype === 'boolean') fields.value_num = p.value * 1
+    if (p.datatype === 'boolean') fields.value_num = p.value * 1
     return {
-      measurement: p.metric.measurement,
+      measurement: p.measurement,
       tags,
       fields,
       timestamp: p.timestamp

@@ -8,11 +8,11 @@ const path = require('path')
 // malfunctioning.
 //
 
-const BUFFER_PATH = process.env.BUFFERPATH || path.resolve(process.cwd(), 'data')
-const QUEUE_PATH = path.resolve(BUFFER_PATH, '_queue')
-const ERROR_PATH = path.resolve(BUFFER_PATH, '_error')
-const WRITE_INTERVAL = process.env.WRITE_INTERVAL || 1000
-const WRITE_BATCHSIZE = process.env.WRITE_BATCHSIZE || 10
+const DATA_PATH = process.env.DATA_PATH || path.resolve(process.cwd(), 'data')
+const QUEUE_PATH = path.resolve(DATA_PATH, '_queue')
+const ERROR_PATH = path.resolve(DATA_PATH, '_error')
+const WRITE_INTERVAL = process.env.WRITE_INTERVAL || 10000
+const WRITE_BATCHSIZE = process.env.WRITE_BATCHSIZE || 1
 
 let ABORTED = false
 let MEMBUFFER = []
@@ -39,15 +39,17 @@ async function stop () {
 
 // addPoints takes an array of points and pushes them to the in-memory buffer.
 async function addPoints (points) {
-  // let pts = points.map((p) => {
-  //   return {
-  //     Measurement: p.metric.measurement,
-  //     Value: p.value,
-  //     Timestamp: p.timestamp,
-  //     Tags: p.metric.tags || {}
-  //   }
-  // })
-  MEMBUFFER.push(...points)
+  let pts = points.map((p) => {
+    return {
+      measurement: p.metric.measurement,
+      datatype: p.metric.datatype,
+      value: p.value,
+      status: p.status,
+      timestamp: p.timestamp,
+      tags: p.metric.tags || {}
+    }
+  })
+  MEMBUFFER.push(...pts)
 }
 
 // _prepareDirectories initializes the directory that will be used to dump

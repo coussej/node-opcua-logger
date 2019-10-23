@@ -16,7 +16,9 @@
 		"influx": "5.4.0",
 		"log4js": "^4.5.1",
 		"node-opcua": "2.1.9",
-		"toml": "^2.3.0"
+		"toml": "^2.3.0",
+		"universal-analytics": "^0.4.20",
+		"uuid": "^3.3.3"
 	},
 	"devDependencies": {
 		"pkg": "4.4.0"
