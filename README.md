@@ -1,4 +1,3 @@
-
 # Influx-OPCUA-logger: An OPCUA Client for logging data to InfluxDB! :electric_plug: :factory:
 
 An application for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
