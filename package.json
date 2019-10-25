@@ -6,6 +6,11 @@
 	"author": "Jeroen Coussement (@coussej)",
 	"license": "MIT",
 	"scripts": {
+		"pkg:win64": "pkg --target win-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_win-x64.exe ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_win-x64.exe > $npm_package_name\\_v$npm_package_version\\_win-x64.sha256",
+    "pkg:win32": "pkg --target win-x86 --output ./dist/$npm_package_name\\_v$npm_package_version\\_win-x86.exe ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_win-x86.exe > $npm_package_name\\_v$npm_package_version\\_win-x86.sha256",
+    "pkg:linux": "pkg --target linux-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_linux-x64 ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_linux-x64 > $npm_package_name\\_v$npm_package_version\\_linux-x64.sha256",
+    "pkg:macos": "pkg --target macos-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_darwin-x64 ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_darwin-x64 > $npm_package_name\\_v$npm_package_version\\_darwin-x64.sha256",
+    "build": "npm run pkg:win64 && npm run pkg:win32 && npm run pkg:linux && npm run pkg:macos",
 		"start": "node ./src/index.js",
 		"postinstall": "node node_modules/node-opcua-client/test_helpers/create_certificates.js certificate -s -a urn:factry.io/opcua -o ./certificates/client_selfsigned_cert.pem"
 	},

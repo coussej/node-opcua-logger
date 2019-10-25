@@ -17,7 +17,7 @@ const TICKR = new ClockTickr({ interval: 1000 })
 const EVENTS = new EventEmitter()
 const UACLIENT = opcua.OPCUAClient.create({
   applicationName: 'factry-opcua-logger',
-  certificateFile: path.resolve(__dirname, '../certificates/client_selfsigned_cert.pem'),
+  certificateFile: path.join(__dirname, '../certificates/client_selfsigned_cert.pem'),
   clientName: 'factry-opcua-logger',
   connectionStrategy: {
     maxRetry: 3,
