@@ -11,8 +11,8 @@ const path = require('path')
 const DATA_PATH = process.env.DATA_PATH || path.resolve(process.cwd(), 'data')
 const QUEUE_PATH = path.resolve(DATA_PATH, '_queue')
 const ERROR_PATH = path.resolve(DATA_PATH, '_error')
-const WRITE_INTERVAL = process.env.WRITE_INTERVAL || 10000
-const WRITE_BATCHSIZE = process.env.WRITE_BATCHSIZE || 1
+const WRITE_INTERVAL = process.env.WRITE_INTERVAL || 1000
+const WRITE_BATCHSIZE = process.env.WRITE_BATCHSIZE || 1000
 
 let ABORTED = false
 let MEMBUFFER = []
