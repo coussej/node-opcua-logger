@@ -2,6 +2,9 @@
 certificates/**/*
 !certificates/config.js
 
+# local config files
+config.*
+
 # data folders created by app
 data/**/*
 
