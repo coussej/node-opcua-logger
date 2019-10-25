@@ -1,5 +1,5 @@
 {
-	"name": "opcua-logger",
+	"name": "influx-opcua-logger",
 	"description": "A logger for logging OPC UA data to InfluxDB",
 	"version": "2.0.0-alpha",
 	"main": "logger.js",

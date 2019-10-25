@@ -29,7 +29,7 @@ Brought to you by [Factry](www.factry.io).
 
 ### From source
 
-* Install the LTS version of NodeJS on you system. Last tested with v12.
+* Install the latest version of NodeJS v10 on you system.
 * Clone this repository.
 * Run `npm install` in the project root.
 * Create a `config.toml` of `config.json` file (see configuration).
