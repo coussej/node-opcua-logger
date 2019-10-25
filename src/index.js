@@ -26,6 +26,8 @@ process.on('SIGINT', async () => { await gracefullShutdown('received SIGINT') })
 
 ;(async () => {
   try {
+    log.info(`Starting Influx OPCUA Logger v${require('../package.json').version}, brought to you by FACTRY (www.factry.io)`)
+
     //
     // Init influxclient
     //
