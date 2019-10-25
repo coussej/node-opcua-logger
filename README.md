@@ -9,6 +9,8 @@ Brought to you by [Factry](www.factry.io).
 
 [![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
 
+:information_source: **This is an alpha release of v2.** Please go ahead and try it out, you can contribute by opening issues if you find any bugs!
+
 ## Features
 
 * Connect to any OPCUA compatible datasource.
@@ -111,7 +113,7 @@ interval           = 5000
 * Jeroen Coussement - [@coussej](https://twitter.com/coussej) - [coussej.github.io](http://coussej.github.io) - [factry.io](https://www.factry.io)
 * Etienne Rossignon - [@gadz_er](https://twitter.com/gadz_er) - for creating the fantastic [node-opcua](https://github.com/node-opcua/node-opcua) library.
 
-#### Disclaimer
+## Disclaimer
 The logger contains a 'phone home' functionality, where it sends anonymous usage data to us (# metrics and runtime), so we can get an idea of how much it is being used. If you don't want this, you can set DISABLE_ANALYTICS=true in the environment.
 
 ## License
