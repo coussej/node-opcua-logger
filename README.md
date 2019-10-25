@@ -1,8 +1,6 @@
 # Influx-OPCUA-logger: An OPCUA Client for logging data to InfluxDB! :electric_plug: :factory:
 
-An application for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
-
-This application will connect to an OPC UA server, subscribe to the metrics in your configuration and log them to an influxdb instance. It also buffers the data in case influxdb is temporarily unavailable, your data is not lost.
+This application will connect to an OPC UA server, subscribe to the metrics in your configuration and log them to an influxdb instance. It also buffers the data in case influxdb is temporarily unavailable, your data is not lost. Has been running in production in several factories since mid 2016.
 
 Brought to you by [Factry](www.factry.io).
 
