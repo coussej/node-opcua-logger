@@ -47,7 +47,7 @@ process.on('SIGINT', async () => { await gracefullShutdown('received SIGINT') })
     //
 
     log.info('Connecting OPCUA')
-    await opcua.start(conf.opcua.url)
+    await opcua.start(conf.opcua)
     opcua.EVENTS.on('points', (pts) => buffer.addPoints(pts))
 
     //

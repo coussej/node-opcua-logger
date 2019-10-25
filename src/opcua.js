@@ -44,12 +44,12 @@ let POLL_ERROR_COUNT = 0
 // :: start initialises the opcuaConnection by starting the scheduler
 //    and connecting to the opcua server.
 //
-async function start (endpointUrl) {
+async function start (config) {
   _startTickr()
 
   // connect to opcua
   try {
-    await _connectUA(endpointUrl)
+    await _connectUA(config.url, config.user, config.pass)
     // handle connection failure.
     UACLIENT._secureChannel._transport._socket.on('close', () => {
       log.info('Socket was closed!')
@@ -112,12 +112,13 @@ function _startTickr () {
 // :: _connectUA connects to the opcua server, creates a session on that
 //    server and finally installs a subscription on that session.
 //
-async function _connectUA (endpointUrl) {
+async function _connectUA (endpointUrl, userName, password) {
   // Connect to the UA server
   await UACLIENT.connect(endpointUrl)
   log.info('Established connection.', { Endpoint: endpointUrl })
-  // Establish a session
-  UASESSION = await UACLIENT.createSession()
+  // Establish a session. Use auth when username is set.
+  UASESSION = userName ? await UACLIENT.createSession({ userName, password })
+    : await UACLIENT.createSession()
   log.info('Established session with server.', { ID: UASESSION.sessionId.value })
   // Install a subscription
   let subOptions = {
