@@ -1,5 +1,6 @@
-# buffer database
-*.db
+# certificates
+certificates/**/*
+!certificates/config.js
 
 # data folders created by app
 data/**/*
