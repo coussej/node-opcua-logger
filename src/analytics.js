@@ -5,6 +5,7 @@ const ua = require('universal-analytics')
 
 let uuid
 let visitor
+let page = '/influx-opcua-logger/' + require('../package.json').version
 let appStart = new Date()
 let metrics = 0
 
@@ -13,27 +14,19 @@ async function start (metricCount) {
   if (!visitor) {
     let clientID = await getInstanceUUID()
     visitor = ua('UA-81483531-4', clientID)
-    visitor.pageview('/influx-opcua-logger/' + require('../package.json').version).send()
-    setInterval(_sendHeartbeat, 10000)
+    visitor.pageview(page)
+      .event('Application', 'Startup', '#metrics', metrics)
+      .send()
+    setInterval(_sendHeartbeat, 60 * 60 * 1000)
   }
 }
 
 async function _sendHeartbeat () {
   let elapsedSeconds = Math.round((new Date() - appStart) / 1000)
   if (!visitor) return
-  visitor.event({
-    ec: 'App Events',
-    ea: 'Hourly Heartbeat',
-    cm1: metrics, // #metrics
-    cm2: elapsedSeconds
-  }).send(err => console.log(err))
-
-  console.log({
-    ec: 'App Events',
-    ea: 'Hourly Heartbeat',
-    cm1: metrics, // #metrics
-    cm2: elapsedSeconds
-  })
+  visitor.pageview(page)
+    .event('Application', 'Heartbeat', '#elapsedTime', elapsedSeconds)
+    .send()
 }
 
 async function getInstanceUUID () {
