@@ -1,16 +1,31 @@
 {
 	"name": "opcua-logger",
 	"description": "A logger for logging OPC UA data to InfluxDB",
-	"version": "0.0.2",
-	"private": true,
+	"version": "2.0.0-alpha",
 	"main": "logger.js",
 	"author": "Jeroen Coussement (@coussej)",
+	"license": "MIT",
+	"scripts": {
+		"pkg:win64": "pkg --target win-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_win-x64.exe ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_win-x64.exe > $npm_package_name\\_v$npm_package_version\\_win-x64.sha256",
+		"pkg:win32": "pkg --target win-x86 --output ./dist/$npm_package_name\\_v$npm_package_version\\_win-x86.exe ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_win-x86.exe > $npm_package_name\\_v$npm_package_version\\_win-x86.sha256",
+		"pkg:linux": "pkg --target linux-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_linux-x64 ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_linux-x64 > $npm_package_name\\_v$npm_package_version\\_linux-x64.sha256",
+		"pkg:macos": "pkg --target macos-x64 --output ./dist/$npm_package_name\\_v$npm_package_version\\_darwin-x64 ./src/index.js && cd dist && openssl dgst -sha256 $npm_package_name\\_v$npm_package_version\\_darwin-x64 > $npm_package_name\\_v$npm_package_version\\_darwin-x64.sha256",
+		"build": "npm run pkg:win64 && npm run pkg:win32 && npm run pkg:linux && npm run pkg:macos",
+		"start": "node ./src/index.js",
+		"postinstall": "node node_modules/node-opcua-client/test_helpers/create_certificates.js certificate -s -a urn:factry.io/opcua -o ./certificates/client_selfsigned_cert.pem"
+	},
 	"dependencies": {
-		"async": "1.5.2",
-		"influx": "4.1.0",
-		"node-opcua": "0.4.5",
-		"node-schedule": "1.1.0",
-		"toml": "2.3.0",
-		"nedb": "1.8.0"
+		"ajv": "^6.10.2",
+		"clock-tickr": "^0.1.0",
+		"fs-extra": "^8.1.0",
+		"influx": "5.4.0",
+		"log4js": "^4.5.1",
+		"node-opcua": "2.1.9",
+		"toml": "^2.3.0",
+		"universal-analytics": "^0.4.20",
+		"uuid": "^3.3.3"
+	},
+	"devDependencies": {
+		"pkg": "4.3.8"
 	}
 }

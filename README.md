@@ -1,72 +1,120 @@
-# node-opcua-logger
-A logger for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
+# Influx-OPCUA-logger: An OPCUA Client for logging data to InfluxDB! :electric_plug: :factory:
 
-This application will connect to an OPC UA server, subscribe to the measurements in your configuration and log them to an influxdb instance. It first buffers the data in a local db, so that in case influxdb is temporarily unavailable, your data is not lost.
+An application for logging OPCUA data to InfluxDB (and possibly other later). Has been running in production in several factories since mid 2016.
 
-> Note: we started working on v2 in a separate branch.
+This application will connect to an OPC UA server, subscribe to the metrics in your configuration and log them to an influxdb instance. It also buffers the data in case influxdb is temporarily unavailable, your data is not lost.
 
-## Installation
+Brought to you by [Factry](www.factry.io).
 
-Make sure you have a recent version of node installed (>4), then execute the following commands.
+[![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
 
-```
-$ git clone https://github.com/coussej/node-opcua-logger.git
-$ cd node-opcua-logger
-$ npm install
-```
+:information_source: **This is an alpha release of v2.** Please go ahead and try it out, you can contribute by opening issues if you find any bugs!
+
+## Features
+
+* Connect to any OPCUA compatible datasource.
+* Support for both polled and monitored logging of values.
+* Logs numbers, booleans and strings. For booleans, the value is recorded as a boolean, but a field `value_num` is added containing 1/0 depending on the `value`.
+* Internal buffering mechanism to avoid data loss when connection to InfluxDB is lost.
+* Deploy as a single binary, no need to install dependencies on host system.
+* Cross-platform: binaries available for both windows, linux and mac.
+
+## How to run
+
+### From a prebuilt binary
+
+* Download a binary for your OS in the release section of this repo.
+* Create a `config.toml` of `config.json` file (see configuration).
+* Data!
+
+### From source
+
+* Install the LTS version of NodeJS on you system. Last tested with v12.
+* Clone this repository.
+* Run `npm install` in the project root.
+* Create a `config.toml` of `config.json` file (see configuration).
+* Run `npm run start`.
+* Data!
 
 ## Configuration
 
-Modify the `config.toml` file to match your configuration. The input section should contain the url of the OPC server (no advanced authentication supported yet).
+### Environment variables
+
+The following settings are optional and controlled by setting environment variables.
+
+* CONFIG_FILE: path to the config file (see below). This defaults to `./config.toml`
+* LOG_FILE: when set, the application will also log to this file instead of only to stdout.
+* LOG_FILE_DAYS: number of days to keep logfiles. Defaults to 10.
+* DATA_PATH: a directory path in which to store  the buffer files. By default, a `./data` folder will be created in the current working directory   
+
+### Config file
+
+The application expects a config file that contains all the details on which data you want to log. This can either be a TOML or a JSON file, whichever you prefer. The application will look for such a file in the current working directory on startup, unless you specifically specify a seperate path in the environment. The contents of the file will be validated against the JSON Schema in the src/schema folder. For reference, two example config files are provided in the example_config folder.
+
+ A config file consists of 2 sections. In the first part, you specify the connection details to both the OPCUA server and the InfluxDB server:
 
 ```
-[input]
-url             = "opc.tcp://opcua.demo-this.com:51210/UA/SampleServer"
-failoverTimeout = 5000     # time to wait before reconnection in case of failure
-```
+# The OPCUA connection parameters. If you want to use anonymous auth, 
+# remove the username and password lines.
+[opcua]
+url             = "opc.tcp://localhost:53530/OPCUA/SimulationServer"
+user            = "test"
+pass            = "test1"
 
-In the output section, specify the connection details for influxdb:
-
-```
-[output]
-name             = "influx_1"
-type             = "influxdb"
-host             = "127.0.0.1"
-port             = 8086
-protocol         = "http"
-username         = ""
-password         = ""
-database         = "test"
-failoverTimeout  = 10000     # Time after which the logger will reconnect
-bufferMaxSize    = 64        # Max size of the local db in MB. TODO.
-writeInterval    = 3000      # Interval of batch writes.
-writeMaxPoints   = 1000      # Max point per POST request.
-```
-
-Then, for each OPC value you want to log, repeat the following in the config file, d:
+# The InfluxDB connection parameters. Use a connection url containing all 
+# details, ie. http(s)://user:password@host:port/database
+[influx]
+url              = "http://user:password@localhost:8086/opcua"
+writeInterval    = 1000          # optional. defaults to 1000ms
+writeMaxPoints   = 1000          # optional. defaults to 1000 points
 
 ```
-# A polled node:
-[[measurements]]
-name               = "Int32polled"
-tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=2;i=10849"
-collectionType     = "polled"
-pollRate           = 20     # samples / minute.
-deadbandAbsolute   = 0      # Absolute max difference for a value not to be collected
-deadbandRelative   = 0.0    # Relative max difference for a value not to be collected
 
-# A monitored node
-[[measurements]]
-name               = "Int32monitored"
-tags               = { tag1 = "test", tag2 = "AB43" }
-nodeId             = "ns=2;i=10849"
-collectionType     = "monitored"
-monitorResolution  = 1000    # ms 
-```
-
-## Run
+In the second part, you specify which metrics to collect. For each such metric, you can specify an objects in the `[[metrics]]` list, like below. A metric should have the following properties:
+* **measurement**: the name under which the values of this metrics should be stored in InfluxDB
+* **datatype**: the datatype of the values. This is either `number`, `boolean` or `string`.
+* **tags**: a list of metadata tags to be stored in InfluxDB. The collector will automatically add a tag with the OPCUA status of each datavalue.
+* **nodeId**: the nodeId of the datavalue in the OPCUA Server.
+* **method**: how this metric should be collected. There are 2 possibilities:
+  * `polled`: collect the value of the metric at regular `interval`s, for example each second. The resulting datapoint will get the timestamp at which the poll was initiated.
+  * `monitored`: subscribe to the value in the OPCUA server, and receive it's value when it has changed. This is mostly used for boolean data (like valve positions) or string data (like batchnumbers).
+  * `interval`: the data collection interval in milliseconds. Currently, only second level intervals are supported, and they are rounded so they match a 1 minute cycle. For example 1000ms will stay as such, 9000 ms will be rounded to 10000ms, 25000ms will be rounded tot 30000ms.  
 
 ```
-$ node logger.js
+# For each metrics you want to collect, add a [[metrics]] object.
+[[metrics]]
+measurement        = "polled1"
+datatype           = "number"
+tags               = { simulation = "true", location = "ghent" }
+nodeId             = "ns=5;s=Sinusoid1"
+method             = "polled"
+interval           = 1000     
+
+[[metrics]]
+measurement        = "monitored2"
+datatype           = "boolean"
+tags               = { simulation = "true", location = "ghent" }
+nodeId             = "ns=3;s=BooleanDataItem"
+method             = "monitored"
+interval           = 5000  
 ```
+     
+## Contributing
+
+1. Fork it!
+2. Create your feature branch: `git checkout -b my-new-feature`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin my-new-feature`
+5. Submit a pull request
+
+## Credits
+
+* Jeroen Coussement - [@coussej](https://twitter.com/coussej) - [coussej.github.io](http://coussej.github.io) - [factry.io](https://www.factry.io)
+* Etienne Rossignon - [@gadz_er](https://twitter.com/gadz_er) - for creating the fantastic [node-opcua](https://github.com/node-opcua/node-opcua) library.
+
+## Disclaimer
+The logger contains a 'phone home' functionality, where it sends anonymous usage data to us (# metrics and runtime), so we can get an idea of how much it is being used. If you don't want this, you can set DISABLE_ANALYTICS=true in the environment.
+
+## License
+
+MIT
