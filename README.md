@@ -2,7 +2,7 @@
 
 This application will connect to an OPC UA server, subscribe to the metrics in your configuration and log them to an influxdb instance. It also buffers the data in case influxdb is temporarily unavailable, your data is not lost. Has been running in production in several factories since mid 2016.
 
-Brought to you by [Factry](www.factry.io).
+Brought to you by [Factry](https://www.factry.io/?utm_source=coussej_github&utm_medium=link&utm_campaign=node-opcua-logger).
 
 [![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
 
