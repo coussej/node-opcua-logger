@@ -7,6 +7,7 @@ dist
 
 # local config files
 config.*
+!example_config/config.*
 
 # data folders created by app
 data/**/*

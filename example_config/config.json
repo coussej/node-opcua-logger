@@ -1,0 +1,36 @@
+{
+  "opcua": {
+    "url": "opc.tcp://localhost:53530/OPCUA/SimulationServer",
+    "user": "test",
+    "pass": "test1"
+  },
+  "influx": {
+    "url": "http://user:password@localhost:8086/opcua",
+    "writeInterval": 1000,
+    "writeMaxPoints": 1000
+  },
+  "metrics": [
+    {
+      "measurement": "polled1",
+      "datatype": "number",
+      "tags": {
+        "simulation": "true",
+        "location": "ghent"
+      },
+      "nodeId": "ns=5;s=Sinusoid1",
+      "method": "polled",
+      "interval": 1000
+    },
+    {
+      "measurement": "monitored2",
+      "datatype": "boolean",
+      "tags": {
+        "simulation": "true",
+        "location": "ghent"
+      },
+      "nodeId": "ns=3;s=BooleanDataItem",
+      "method": "monitored",
+      "interval": 5000
+    }
+  ]
+}
