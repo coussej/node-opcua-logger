@@ -1,17 +1,29 @@
 'use strict'
 
 class Point {
-  constructor (value, status, timestamp, metric) {
+  constructor (value, status, timestamp, metric, array) {
     this.value = value
     this.status = status
     this.timestamp = timestamp
     this.metric = metric
+    this.array = array
   }
 
   shouldRecord () {
+    this.array = false
+    var i
     switch (this.metric.datatype) {
       case 'number':
-        if (typeof this.value !== 'number' || !isFinite(this.value)) {
+        if (this.value.length > 0) {
+          this.array = true 
+          for (i=0;i<this.value.length;i++) {
+            if ((typeof this.value[i] !== 'number' || !isFinite(this.value[i]))) {
+              this.value=0
+              if (this.status === 'Good') this.status = 'BadInvalidDataType'
+            }
+          }
+        }
+        if ((typeof this.value !== 'number' || !isFinite(this.value)) && this.array == false) {
           this.value = 0
           if (this.status === 'Good') this.status = 'BadInvalidDataType'
         }
