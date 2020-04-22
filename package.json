@@ -1,7 +1,7 @@
 {
 	"name": "influx-opcua-logger",
 	"description": "A logger for logging OPC UA data to InfluxDB",
-	"version": "2.0.0-alpha",
+	"version": "2.0.0-alpha-fan",
 	"main": "logger.js",
 	"author": "Jeroen Coussement (@coussej)",
 	"license": "MIT",

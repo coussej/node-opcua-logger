@@ -16,9 +16,15 @@ async function start (url) {
 async function write (points) {
   let pts = points.map((p) => {
     let tags = p.tags || {}
+    let fields = {}
     tags.status = p.status
-
-    let fields = { value: p.value }
+    if ( p.value.length > 0 ) {
+      for ($i=0;$i<p.value.length;$i++) {
+        fields["value_" + $i] = p.value[$i]
+      }
+    } else {
+      fields = { value: p.value }
+    }
     if (p.datatype === 'boolean') fields.value_num = p.value * 1
     return {
       measurement: p.measurement,
