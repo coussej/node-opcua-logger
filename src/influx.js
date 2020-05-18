@@ -3,8 +3,8 @@ let log = require('log4js').getLogger('influx')
 
 let INFLUX = null
 
-async function start (url) {
-  INFLUX = new Influx.InfluxDB(url)
+async function start (conf) {
+  INFLUX = new Influx.InfluxDB(conf.url)
   let host = (await INFLUX.ping(5000))[0]
   if (host.online) {
     log.info(`${host.url.host} responded in ${host.rtt}ms running ${host.version}`)
@@ -18,9 +18,9 @@ async function write (points) {
     let tags = p.tags || {}
     let fields = {}
     tags.status = p.status
-    if ( p.value.length > 0 ) {
-      for ($i=0;$i<p.value.length;$i++) {
-        fields["value_" + $i] = p.value[$i]
+    if (p.value.length > 0) {
+      for (let i = 0; i < p.value.length; i++) {
+        fields['value_' + i] = p.value[i]
       }
     } else {
       fields = { value: p.value }

@@ -6,9 +6,14 @@ user            = "test"
 pass            = "test1"
 
 # The InfluxDB connection parameters. Use a connection url containing all 
-# details, ie. http(s)://user:password@host:port/database
+# details, ie. http(s)://user:password@host:port/database. 
+# The application will assume that, when a token is provided here, influx 2 is used.
 [influx]
-url              = "http://user:password@localhost:8086/opcua"
+# url              = "http://user:password@localhost:8086/opcua"
+url              = "https://westeurope-1.azure.cloud2.influxdata.com"
+token            = "<INSERT_TOKEN_HERE>"
+org              = "test_org" 
+bucket           = "node-opcua-logger"
 writeInterval    = 1000          # optional. defaults to 1000ms
 writeMaxPoints   = 1000          # optional. defaults to 1000 points
 

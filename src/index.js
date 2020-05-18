@@ -1,7 +1,8 @@
 const log = require('./logging.js').getLogger('main')
 const analytics = require('./analytics.js')
 const config = require('./config.js')
-const influx = require('./influx.js')
+const influx1 = require('./influx.js')
+const influx2 = require('./influx2.js')
 const buffer = require('./buffer.js')
 const opcua = require('./opcua.js')
 
@@ -33,7 +34,8 @@ process.on('SIGINT', async () => { await gracefullShutdown('received SIGINT') })
     //
 
     log.info('Initialising influxClient')
-    await influx.start(conf.influx.url)
+    let influx = conf.influx.token ? influx2 : influx1
+    await influx.start(conf.influx)
 
     //
     // Create and start the buffer.

@@ -42,6 +42,24 @@
           "default": "",
           "pattern": "^(.*)$"
         },
+        "token": {
+          "$id": "#/properties/influx/properties/token",
+          "type": "string",
+          "title": "InfluxDB v2 token",
+          "default": 1000
+        },
+        "bucket": {
+          "$id": "#/properties/influx/properties/bucket",
+          "type": "string",
+          "title": "InfluxDB v2 bucket",
+          "default": 1000
+        },
+        "org": {
+          "$id": "#/properties/influx/properties/bucket",
+          "type": "string",
+          "title": "InfluxDB v2 org",
+          "default": 1000
+        },
         "writeInterval": {
           "$id": "#/properties/influx/properties/writeInterval",
           "type": "integer",
