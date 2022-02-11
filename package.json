@@ -15,7 +15,7 @@
 		"postinstall": "node node_modules/node-opcua-client/test_helpers/create_certificates.js certificate -s -a urn:factry.io/opcua -o ./certificates/client_selfsigned_cert.pem"
 	},
 	"dependencies": {
-		"ajv": "^6.10.2",
+		"ajv": "^6.12.3",
 		"clock-tickr": "^0.1.0",
 		"fs-extra": "^8.1.0",
 		"influx": "5.4.0",
